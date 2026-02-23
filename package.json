@@ -1,0 +1,21 @@
+{
+  "name": "calling-agent",
+  "version": "1.0.0",
+  "description": "AI voice agent that answers calls, stores transcripts, classifies leads, and syncs to Amo CRM",
+  "main": "src/index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "demo:seed": "node scripts/seed-demo-call.js",
+    "demo:simulate": "node scripts/simulate-webhook.js"
+  },
+  "keywords": ["vapi", "twilio", "amocrm", "voice-agent", "lead-qualification"],
+  "license": "MIT",
+  "dependencies": {
+    "@vapi-ai/server-sdk": "^0.11.0",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "openai": "^4.73.0"
+  }
+}

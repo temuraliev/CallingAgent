@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Calling Agent – Calls Dashboard</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Calling Agent</h1>
+    <p class="subtitle">AI voice calls → JSON storage → Lead classification</p>
+  </header>
+
+  <main>
+    <section class="stats" id="stats">
+      <div class="stat"><span class="stat-value" id="totalCalls">0</span><span class="stat-label">Total calls</span></div>
+      <div class="stat"><span class="stat-value" id="hotCount">0</span><span class="stat-label">Hot leads</span></div>
+      <div class="stat"><span class="stat-value" id="warmCount">0</span><span class="stat-label">Warm leads</span></div>
+      <div class="stat"><span class="stat-value" id="coldCount">0</span><span class="stat-label">Cold leads</span></div>
+    </section>
+
+    <section class="calls">
+      <h2>Recent calls</h2>
+      <div id="callsList">
+        <p class="empty" id="emptyMsg">Loading…</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <a href="/health">Health</a> · <a href="/api/calls">API</a>
+  </footer>
+
+  <script>
+    const tempColors = { hot: '#dc2626', warm: '#f59e0b', cold: '#6b7280' };
+
+    async function loadCalls() {
+      const res = await fetch('/api/calls?limit=50');
+      const calls = await res.json();
+      renderCalls(calls);
+      renderStats(calls);
+    }
+
+    function renderStats(calls) {
+      const hot = calls.filter(c => c.leadTemperature === 'hot').length;
+      const warm = calls.filter(c => c.leadTemperature === 'warm').length;
+      const cold = calls.filter(c => c.leadTemperature === 'cold').length;
+      document.getElementById('totalCalls').textContent = calls.length;
+      document.getElementById('hotCount').textContent = hot;
+      document.getElementById('warmCount').textContent = warm;
+      document.getElementById('coldCount').textContent = cold;
+    }
+
+    function formatTime(iso) {
+      const d = new Date(iso);
+      return d.toLocaleString();
+    }
+
+    function formatDuration(sec) {
+      if (!sec) return '—';
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function transcriptToHtml(transcript) {
+      if (!transcript || !Array.isArray(transcript)) return '<em>No transcript</em>';
+      return transcript.map(t => {
+        const role = t.role || 'unknown';
+        const msg = t.message || t.content || '';
+        return `<div class="transcript-line ${role}"><strong>${role}:</strong> ${msg}</div>`;
+      }).join('');
+    }
+
+    function renderCalls(calls) {
+      const el = document.getElementById('callsList');
+      const empty = document.getElementById('emptyMsg');
+
+      if (!calls.length) {
+        empty.textContent = 'No calls yet. Make a call or run npm run demo:seed';
+        empty.classList.remove('hidden');
+        return;
+      }
+
+      empty.classList.add('hidden');
+      el.innerHTML = calls.map(c => `
+        <div class="call-card" data-id="${c.callId}">
+          <div class="call-header" onclick="toggleExpand('${c.callId}')">
+            <span class="call-id">${c.callId}</span>
+            <span class="call-phone">${c.callerPhone || '—'}</span>
+            <span class="call-duration">${formatDuration(c.duration)}</span>
+            <span class="call-temp badge ${c.leadTemperature}" style="--temp-color:${tempColors[c.leadTemperature] || '#6b7280'}">${c.leadTemperature}</span>
+            <span class="call-time">${formatTime(c.timestamp)}</span>
+          </div>
+          <div class="call-details" id="details-${c.callId}">
+            <div class="detail-row"><strong>Reason:</strong> ${c.classificationReason || '—'}</div>
+            ${c.summary ? `<div class="detail-row"><strong>Summary:</strong> ${c.summary}</div>` : ''}
+            ${c.crmId ? `<div class="detail-row"><strong>CRM:</strong> ${c.crmProvider || 'amo'} #${c.crmId}</div>` : ''}
+            <div class="transcript">${transcriptToHtml(c.transcript)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function toggleExpand(id) {
+      const el = document.getElementById(`details-${id}`);
+      if (el) el.classList.toggle('expanded');
+    }
+
+    loadCalls();
+    setInterval(loadCalls, 10000);
+  </script>
+</body>
+</html>
