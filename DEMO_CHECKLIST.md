@@ -7,7 +7,7 @@ Use this before your demo call with founders.
 ### Accounts & Credits
 
 - [ ] **VAPI** – Sign up at [dashboard.vapi.ai](https://dashboard.vapi.ai), confirm $10 free credits
-- [ ] **OpenAI** – API key at [platform.openai.com](https://platform.openai.com), add $5 credit
+- [ ] **Gemini** – API key at [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (free)
 - [ ] **Railway** – Sign up at [railway.app](https://railway.app), use $5 trial
 
 ### Local Test
@@ -28,7 +28,7 @@ Use this before your demo call with founders.
 
 - [ ] Push repo to GitHub
 - [ ] Railway → New Project → Deploy from GitHub
-- [ ] Add env vars: `VAPI_API_KEY`, `OPENAI_API_KEY`, `VAPI_PUBLIC_API_KEY`, `VAPI_ASSISTANT_ID`, `PORT` (auto)
+- [ ] Add env vars: `VAPI_API_KEY`, `GEMINI_API_KEY`, `VAPI_PUBLIC_API_KEY`, `VAPI_ASSISTANT_ID`, `PORT` (auto)
 - [ ] Deploy, copy URL (e.g. `https://xxx.up.railway.app`)
 - [ ] Webhook URL: `https://xxx.up.railway.app/webhook/vapi`
 - [ ] Set this in VAPI assistant → Server URL

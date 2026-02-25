@@ -24,7 +24,7 @@ cp .env.demo .env
 Edit `.env` and add:
 
 - `VAPI_API_KEY` – from [VAPI Dashboard](https://dashboard.vapi.ai) → Settings → API Keys
-- `OPENAI_API_KEY` – from [OpenAI](https://platform.openai.com/api-keys)
+- `GEMINI_API_KEY` – from [Google AI Studio](https://aistudio.google.com/apikey)
 - `VAPI_PUBLIC_API_KEY` – from VAPI Dashboard → Settings → API Keys (Public key for web widget)
 - `VAPI_ASSISTANT_ID` – from VAPI Dashboard → Assistants → your assistant’s ID
 
@@ -54,7 +54,7 @@ With the server running:
 npm run demo:simulate
 ```
 
-A new call is created via the webhook (uses OpenAI for classification).
+A new call is created via the webhook (uses Gemini for classification).
 
 ## 6. VAPI Setup (5 min)
 
@@ -81,7 +81,7 @@ Set webhook: `https://YOUR_NGROK_URL/webhook/vapi`
 3. Select repo, deploy
 4. **Variables** → Add:
    - `VAPI_API_KEY`
-   - `OPENAI_API_KEY`
+   - `GEMINI_API_KEY`
    - `VAPI_PUBLIC_API_KEY` (for web call widget)
    - `VAPI_ASSISTANT_ID` (for web call widget)
 5. Copy the public URL (e.g. `https://calling-agent.up.railway.app`)
@@ -99,6 +99,6 @@ Set webhook: `https://YOUR_NGROK_URL/webhook/vapi`
 |---------|-----------|
 | VAPI | $10 credits (~200 min) |
 | VAPI Phone | 10 free US numbers |
-| OpenAI | Pay-as-you-go (~$0.001/call) |
+| Gemini | Free tier (15 req/min, 1M tokens/day) |
 | Railway | $5 trial + $1/mo credit |
 | ngrok | 20k requests/mo |

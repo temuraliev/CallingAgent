@@ -6,7 +6,7 @@ AI voice agent that answers inbound telephone calls, stores call data as JSON, c
 
 ```
 Caller → Twilio → VAPI (STT/LLM/TTS) → End-of-call webhook → This server
-                                                              ├── Classify lead (OpenAI)
+                                                              ├── Classify lead (Gemini)
                                                               ├── Save to JSON
                                                               └── Push to CRM (Amo or Bitrix24)
 ```
@@ -24,7 +24,7 @@ npm install
 Copy `.env.example` to `.env` and fill in:
 
 - `VAPI_API_KEY` – from [VAPI Dashboard](https://dashboard.vapi.ai)
-- `OPENAI_API_KEY` – from [OpenAI](https://platform.openai.com)
+- `GEMINI_API_KEY` – from [Google AI Studio](https://aistudio.google.com/apikey)
 - `CRM_PROVIDER` – `amo` or `bitrix` (optional, omit to skip CRM sync)
 - `AMO_*` or `BITRIX24_*` – CRM credentials per provider
 
@@ -109,7 +109,7 @@ Deploy to any Node.js host with HTTPS:
 
 ```bash
 fly launch
-fly secrets set VAPI_API_KEY=... OPENAI_API_KEY=... # etc.
+fly secrets set VAPI_API_KEY=... GEMINI_API_KEY=... # etc.
 fly deploy
 ```
 
