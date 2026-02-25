@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Call AI Agent – Calling Agent</title>
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .call-page { max-width: 480px; margin: 2rem auto; padding: 1.5rem; text-align: center; }
+    .call-page h1 { margin-bottom: 0.5rem; }
+    .call-page .subtitle { color: #6b7280; margin-bottom: 2rem; }
+    .call-page .back { display: inline-block; margin-bottom: 1.5rem; color: #12A594; text-decoration: none; }
+    .call-page .back:hover { text-decoration: underline; }
+    .call-page .setup-msg { background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 1rem; margin: 1rem 0; font-size: 0.9rem; }
+    .call-page .setup-msg code { background: #fff; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="call-page">
+    <a href="/" class="back">← Dashboard</a>
+    <h1>Call AI Agent</h1>
+    <p class="subtitle">Start a voice call from your browser. No phone needed.</p>
+    <div id="setupMsg" class="setup-msg hidden">
+      Add <code>VAPI_PUBLIC_API_KEY</code> and <code>VAPI_ASSISTANT_ID</code> to your .env and Railway variables.
+      Get them from <a href="https://dashboard.vapi.ai" target="_blank" rel="noopener">VAPI Dashboard</a>.
+    </div>
+    <p id="readyMsg">The call button will appear below. Allow microphone access when prompted.</p>
+  </div>
+
+  <script>
+    (async function() {
+      const res = await fetch('/api/config');
+      const { vapiPublicKey, vapiAssistantId } = await res.json();
+
+      if (!vapiPublicKey || !vapiAssistantId) {
+        document.getElementById('setupMsg').classList.remove('hidden');
+        document.getElementById('readyMsg').classList.add('hidden');
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js';
+      script.defer = true;
+      script.async = true;
+      script.onload = function() {
+        window.vapiSDK.run({
+          apiKey: vapiPublicKey,
+          assistant: vapiAssistantId,
+        });
+      };
+      document.body.appendChild(script);
+    })();
+  </script>
+</body>
+</html>

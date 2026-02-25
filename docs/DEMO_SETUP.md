@@ -25,6 +25,8 @@ Edit `.env` and add:
 
 - `VAPI_API_KEY` – from [VAPI Dashboard](https://dashboard.vapi.ai) → Settings → API Keys
 - `OPENAI_API_KEY` – from [OpenAI](https://platform.openai.com/api-keys)
+- `VAPI_PUBLIC_API_KEY` – from VAPI Dashboard → Settings → API Keys (Public key for web widget)
+- `VAPI_ASSISTANT_ID` – from VAPI Dashboard → Assistants → your assistant’s ID
 
 Leave `CRM_PROVIDER` unset for demo (JSON-only, no CRM).
 
@@ -80,12 +82,16 @@ Set webhook: `https://YOUR_NGROK_URL/webhook/vapi`
 4. **Variables** → Add:
    - `VAPI_API_KEY`
    - `OPENAI_API_KEY`
+   - `VAPI_PUBLIC_API_KEY` (for web call widget)
+   - `VAPI_ASSISTANT_ID` (for web call widget)
 5. Copy the public URL (e.g. `https://calling-agent.up.railway.app`)
 6. In VAPI assistant, set Server URL: `https://YOUR_RAILWAY_URL/webhook/vapi`
 
 ## 8. Test Call
 
-Call your VAPI number. Talk for 30–60 seconds. Hang up. Check the dashboard – the call should appear with transcript and lead classification.
+**Option A – Web call (no phone):** Open `https://YOUR_RAILWAY_URL/call.html` and use the call button. Talk, hang up, then check the dashboard.
+
+**Option B – Phone call:** Call your VAPI number. Talk for 30–60 seconds. Hang up. Check the dashboard – the call should appear with transcript and lead classification.
 
 ## Free Tier Summary
 

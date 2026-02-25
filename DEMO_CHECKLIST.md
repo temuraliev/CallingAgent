@@ -28,18 +28,19 @@ Use this before your demo call with founders.
 
 - [ ] Push repo to GitHub
 - [ ] Railway → New Project → Deploy from GitHub
-- [ ] Add env vars: `VAPI_API_KEY`, `OPENAI_API_KEY`, `PORT` (auto)
+- [ ] Add env vars: `VAPI_API_KEY`, `OPENAI_API_KEY`, `VAPI_PUBLIC_API_KEY`, `VAPI_ASSISTANT_ID`, `PORT` (auto)
 - [ ] Deploy, copy URL (e.g. `https://xxx.up.railway.app`)
 - [ ] Webhook URL: `https://xxx.up.railway.app/webhook/vapi`
 - [ ] Set this in VAPI assistant → Server URL
 
 ### Test End-to-End
 
-- [ ] Call your VAPI number
+- [ ] **Web call:** Open `https://YOUR_RAILWAY_URL/call.html` → click call button → talk → hang up
+- [ ] **Or phone:** Call your VAPI number
 - [ ] Have a short conversation (30–60 sec)
 - [ ] Hang up
 - [ ] Check dashboard – new call with transcript and classification
-- [ ] Check `./calls/` – JSON file created
+- [ ] Check `./calls/` – JSON file created (local only; Railway filesystem is ephemeral)
 
 ## Demo Day (5–10 min flow)
 

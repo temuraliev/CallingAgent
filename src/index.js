@@ -138,6 +138,16 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+/**
+ * Config for the web call widget (public key + assistant ID).
+ * Used by /call.html - VAPI public key is safe to expose client-side.
+ */
+app.get('/api/config', (req, res) => {
+  const publicKey = process.env.VAPI_PUBLIC_API_KEY || '';
+  const assistantId = process.env.VAPI_ASSISTANT_ID || '';
+  res.json({ vapiPublicKey: publicKey, vapiAssistantId: assistantId });
+});
+
 app.get('/api/calls', async (req, res) => {
   try {
     const limit = parseInt(req.query.limit, 10) || 20;
