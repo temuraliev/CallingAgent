@@ -79,8 +79,11 @@ app.post('/webhook/vapi', async (req, res) => {
 
   let transcript = transcriptToText(call.artifact);
 
+  // VAPI API requires callId to be a valid UUID; webhook may send other formats
+  const isValidUuid = callId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(callId));
+
   // Fetch full call from VAPI API when we need transcript or duration (webhook payload often lacks timestamps)
-  if (vapi && callId && (!transcript || duration === 0)) {
+  if (vapi && isValidUuid && (!transcript || duration === 0)) {
     try {
       const fullCall = await vapi.calls.get(callId);
       if (!transcript) transcript = transcriptToText(fullCall.artifact);
@@ -102,10 +105,17 @@ app.post('/webhook/vapi', async (req, res) => {
 
   const transcriptForStorage = call.artifact?.messages || call.artifact?.transcript || [];
 
+  let temperature = 'cold';
+  let reason = '';
   try {
-    // Classify lead
-    const { temperature, reason } = await classifyLead(transcript || summary, summary);
+    const classified = await classifyLead(transcript || summary, summary);
+    temperature = classified.temperature;
+    reason = classified.reason || '';
+  } catch (err) {
+    console.error('Lead classification failed (call will be saved as cold):', err.message);
+  }
 
+  try {
     const storedCall = createStoredCall({
       callId: callId || `unknown-${Date.now()}`,
       timestamp: new Date().toISOString(),
@@ -117,7 +127,7 @@ app.post('/webhook/vapi', async (req, res) => {
       transcript: transcriptForStorage,
       summary,
       leadTemperature: temperature,
-      classificationReason: reason,
+      classificationReason: reason || '',
       crmId: null,
       crmProvider: null,
     });
