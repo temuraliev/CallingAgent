@@ -54,10 +54,21 @@ app.post('/webhook/vapi', async (req, res) => {
     '';
   const callerName =
     call.customer?.name || call.from?.name || call.customer?.firstName || '';
-  const duration =
-    typeof call.duration === 'number'
-      ? call.duration
-      : parseInt(call.duration, 10) || 0;
+  // VAPI does not send call.duration; calculate from timestamps
+  let duration = 0;
+  if (typeof call.duration === 'number' && call.duration >= 0) {
+    duration = call.duration;
+  } else {
+    const startedAt = call.startedAt ? new Date(call.startedAt).getTime() : null;
+    const endedAt = call.endedAt ? new Date(call.endedAt).getTime() : null;
+    if (startedAt && endedAt && endedAt > startedAt) {
+      duration = Math.round((endedAt - startedAt) / 1000);
+    } else if (call.createdAt && call.updatedAt) {
+      const created = new Date(call.createdAt).getTime();
+      const updated = new Date(call.updatedAt).getTime();
+      duration = Math.max(0, Math.round((updated - created) / 1000));
+    }
+  }
   const callType =
     call.direction === 'outbound' || call.type === 'outbound' ? 'outbound' : 'inbound';
   const recordingUrl =
@@ -90,7 +101,7 @@ app.post('/webhook/vapi', async (req, res) => {
       callType,
       callerPhone: from,
       callerName: callerName || null,
-      duration: typeof duration === 'number' ? duration : parseInt(duration, 10) || 0,
+      duration,
       recordingUrl,
       transcript: transcriptForStorage,
       summary,
