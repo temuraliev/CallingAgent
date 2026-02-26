@@ -92,21 +92,38 @@ app.post('/webhook/vapi', async (req, res) => {
   // VAPI API requires callId to be a valid UUID; webhook may send other formats
   const isValidUuid = callId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(callId));
 
+  function extractMessages(obj) {
+    if (!obj) return [];
+    return obj.artifact?.messages
+      || obj.artifact?.transcript
+      || obj.messages
+      || obj.transcript
+      || obj.artifact?.messagesOpenAIFormatted
+      || [];
+  }
+
   // Fetch full call from VAPI API to fill in missing data (transcript, duration)
   if (vapi && isValidUuid && (!transcript || duration === 0 || transcriptForStorage.length === 0)) {
-    // VAPI may not have processed the call data yet; retry with delay
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        if (attempt > 0) await new Promise(r => setTimeout(r, 3000));
+        if (attempt > 0) await new Promise(r => setTimeout(r, 5000));
         const fullCall = await vapi.calls.get(callId);
-        console.log(`[VAPI API attempt ${attempt + 1}] keys:`, Object.keys(fullCall).join(', '),
-          '| startedAt:', fullCall.startedAt, '| endedAt:', fullCall.endedAt,
-          '| msgs:', fullCall.artifact?.messages?.length || 0);
+        const msgs = extractMessages(fullCall);
+        console.log(`[VAPI attempt ${attempt + 1}] keys:`, Object.keys(fullCall).join(', '),
+          '| artifact keys:', fullCall.artifact ? Object.keys(fullCall.artifact).join(', ') : 'none',
+          '| msgs found:', msgs.length,
+          '| startedAt:', fullCall.startedAt, '| endedAt:', fullCall.endedAt);
 
-        if (!transcript) transcript = transcriptToText(fullCall.artifact);
+        if (!transcript && msgs.length > 0) {
+          transcript = msgs.map(m => {
+            const role = m.role || 'unknown';
+            const text = m.message || m.content || m.text || '';
+            return text ? `[${role}]: ${text}` : '';
+          }).filter(Boolean).join('\n');
+        }
 
-        if (transcriptForStorage.length === 0) {
-          transcriptForStorage = fullCall.artifact?.messages || fullCall.artifact?.transcript || [];
+        if (transcriptForStorage.length === 0 && msgs.length > 0) {
+          transcriptForStorage = msgs;
         }
 
         if (duration === 0) {
@@ -127,7 +144,7 @@ app.post('/webhook/vapi', async (req, res) => {
 
         if (transcript && transcriptForStorage.length > 0 && duration > 0) break;
       } catch (err) {
-        console.error(`Failed to fetch call from VAPI (attempt ${attempt + 1}):`, err.message);
+        console.error(`VAPI fetch failed (attempt ${attempt + 1}):`, err.message);
         break;
       }
     }

@@ -1,12 +1,12 @@
-const SYSTEM_PROMPT = `You are a sales lead classifier. Analyze the conversation transcript and summary, then classify the lead as cold, warm, or hot.
+const SYSTEM_PROMPT = `Ты — классификатор лидов по продажам. Проанализируй транскрипт и резюме разговора, затем классифицируй лид как cold, warm или hot.
 
-Definitions:
-- COLD: No clear interest, wrong number, hang-up, or not a sales opportunity.
-- WARM: Interested in the product/service, needs follow-up, asked questions, requested information.
-- HOT: Ready to buy, requested demo/meeting, expressed urgency, ready to proceed.
+Определения:
+- COLD: Нет явного интереса, неправильный номер, сброс звонка, нет перспективы продажи.
+- WARM: Есть интерес к продукту/услуге, нужен повторный контакт, задавал вопросы, запрашивал информацию.
+- HOT: Готов к покупке, запросил демо/встречу, выразил срочность, готов продолжить.
 
-Respond with valid JSON only, no other text:
-{"temperature": "cold"|"warm"|"hot", "reason": "Brief explanation"}`;
+Отвечай строго JSON без другого текста. Поле reason пиши на русском языке:
+{"temperature": "cold"|"warm"|"hot", "reason": "Краткое объяснение на русском"}`;
 
 /**
  * Classifies a lead based on transcript and summary using Gemini API.
@@ -18,7 +18,7 @@ export async function classifyLead(transcript, summary) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY is required for lead classification');
 
-  const userContent = `Summary: ${summary || 'N/A'}\n\nTranscript:\n${transcript || 'No transcript available'}`;
+  const userContent = `Резюме: ${summary || 'Нет'}\n\nТранскрипт:\n${transcript || 'Транскрипт отсутствует'}`;
 
   const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
@@ -52,6 +52,6 @@ export async function classifyLead(transcript, summary) {
 
   return {
     temperature,
-    reason: parsed.reason || 'No reason provided',
+    reason: parsed.reason || 'Причина не указана',
   };
 }
