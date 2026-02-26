@@ -190,7 +190,7 @@
         <div class="settings-form">
           <div class="settings-card">
             <h2 class="section-title">Настройки ассистента</h2>
-            <p class="settings-desc">Эти настройки применяются к исходящим звонкам. System Prompt определяет поведение и сценарий ассистента, First Message — первая фраза при звонке.</p>
+            <p class="settings-desc">При сохранении настройки синхронизируются с VAPI и применяются ко всем звонкам (входящим и исходящим). System Prompt определяет поведение и сценарий ассистента, First Message — первая фраза при звонке.</p>
 
             <div class="form-group">
               <label for="settingsFirstMessage">Первое сообщение</label>
@@ -452,8 +452,15 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
+        const result = await res.json();
         if (!res.ok) throw new Error('Ошибка сохранения');
-        showToast('Настройки сохранены', 'success');
+        if (result._vapiSynced) {
+          showToast('Настройки сохранены и синхронизированы с VAPI', 'success');
+        } else if (result._vapiError) {
+          showToast('Сохранено локально, но ошибка VAPI: ' + result._vapiError, 'error');
+        } else {
+          showToast('Настройки сохранены (VAPI не настроен)', 'info');
+        }
       } catch (err) {
         showToast(err.message, 'error');
       } finally {

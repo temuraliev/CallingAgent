@@ -333,17 +333,22 @@ app.post('/api/settings', async (req, res) => {
     const assistantId = process.env.VAPI_ASSISTANT_ID;
     if (vapi && assistantId && (saved.systemPrompt || saved.firstMessage)) {
       try {
+        // First, get current assistant to preserve model provider/model fields
+        const current = await vapi.assistants.get(assistantId);
         const patch = {};
         if (saved.firstMessage) patch.firstMessage = saved.firstMessage;
         if (saved.systemPrompt) {
           patch.model = {
+            ...current.model,
             messages: [{ role: 'system', content: saved.systemPrompt }],
           };
         }
         await vapi.assistants.update(assistantId, patch);
-        console.log('VAPI assistant updated with new settings');
+        console.log('VAPI assistant updated successfully');
+        saved._vapiSynced = true;
       } catch (vapiErr) {
         console.error('Failed to sync settings to VAPI:', vapiErr.message);
+        saved._vapiError = vapiErr.message;
       }
     }
 
