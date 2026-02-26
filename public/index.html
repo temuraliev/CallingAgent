@@ -3,96 +3,214 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Calling Agent – Calls Dashboard</title>
+  <title>Calling Agent – Dashboard</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <header>
-    <h1>Calling Agent</h1>
-    <p class="subtitle">AI voice calls → JSON storage → Lead classification</p>
-    <div class="header-actions">
-      <form id="outboundForm" class="outbound-form">
-        <input type="tel" name="phoneNumber" placeholder="+1 234 567 8900" required>
-        <input type="text" name="customerName" placeholder="Name (optional)">
-        <button type="submit">📞 Start outbound call</button>
-      </form>
-      <a href="/call.html" style="color:#12A594;font-size:0.9rem;">📞 Call AI Agent</a>
-    </div>
-  </header>
-
-  <main>
-    <nav class="tabs">
-      <button class="tab active" data-tab="dashboard">Dashboard</button>
-      <button class="tab" data-tab="calls">Call List</button>
-    </nav>
-
-    <section id="tab-dashboard" class="tab-panel active">
-      <div class="stats" id="stats">
-        <div class="stat"><span class="stat-value" id="totalCalls">0</span><span class="stat-label">Total calls</span></div>
-        <div class="stat"><span class="stat-value" id="totalDuration">0:00</span><span class="stat-label">Total duration</span></div>
-        <div class="stat"><span class="stat-value" id="hotCount">0</span><span class="stat-label">Hot leads</span></div>
-        <div class="stat"><span class="stat-value" id="warmCount">0</span><span class="stat-label">Warm leads</span></div>
-        <div class="stat"><span class="stat-value" id="coldCount">0</span><span class="stat-label">Cold leads</span></div>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+          </svg>
+        </div>
+        <span class="logo-text">Calling Agent</span>
       </div>
-    </section>
+      <nav class="sidebar-nav">
+        <button class="nav-item active" data-tab="dashboard">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+          Dashboard
+        </button>
+        <button class="nav-item" data-tab="calls">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+          Calls
+        </button>
+        <a href="/call.html" class="nav-item nav-link">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+          Live Call
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <a href="/health" class="nav-item nav-link">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+          Health
+        </a>
+      </div>
+    </aside>
 
-    <section id="tab-calls" class="tab-panel">
-      <div class="filters-bar">
-        <input type="date" id="filterFrom" placeholder="From">
-        <input type="date" id="filterTo" placeholder="To">
-        <select id="filterStatus">
-          <option value="">All statuses</option>
-          <option value="hot">Hot</option>
-          <option value="warm">Warm</option>
-          <option value="cold">Cold</option>
-        </select>
-        <select id="filterType">
-          <option value="">All types</option>
-          <option value="inbound">Inbound</option>
-          <option value="outbound">Outbound</option>
-        </select>
-        <input type="number" id="filterDurationMin" placeholder="Min sec" min="0" style="width:80px">
-        <input type="number" id="filterDurationMax" placeholder="Max sec" min="0" style="width:80px">
-        <input type="text" id="filterPhone" placeholder="Phone search">
-        <button type="button" id="applyFilters">Apply</button>
-      </div>
-      <div class="calls-table-wrap">
-        <table class="calls-table">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Type</th>
-              <th>Lead</th>
-              <th>Duration</th>
-              <th>Contact</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody id="callsTableBody">
-            <tr><td colspan="6" class="empty">Loading…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-  </main>
+    <main class="content">
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 class="page-title" id="pageTitle">Dashboard</h1>
+          <span class="page-subtitle">AI voice calls &middot; Lead classification</span>
+        </div>
+        <div class="topbar-right">
+          <form id="outboundForm" class="outbound-form">
+            <input type="tel" name="phoneNumber" placeholder="+1 234 567 8900" required>
+            <input type="text" name="customerName" placeholder="Name">
+            <button type="submit" class="btn btn-primary">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+              Call
+            </button>
+          </form>
+        </div>
+      </header>
+
+      <section id="tab-dashboard" class="tab-panel active">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon total">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="totalCalls">0</span>
+              <span class="stat-label">Total Calls</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon duration">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="totalDuration">0:00</span>
+              <span class="stat-label">Total Duration</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon hot">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2c.3 4-4 6-4 10a6 6 0 0012 0c0-4-4-6-4-10-1 2-3 2-4 0z"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="hotCount">0</span>
+              <span class="stat-label">Hot Leads</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon warm">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="warmCount">0</span>
+              <span class="stat-label">Warm Leads</span>
+            </div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon cold">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2v20"/><path d="M17 7l-5 5-5-5"/><path d="M7 17l5-5 5 5"/></svg>
+            </div>
+            <div class="stat-info">
+              <span class="stat-value" id="coldCount">0</span>
+              <span class="stat-label">Cold Leads</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="recent-section">
+          <h2 class="section-title">Recent Calls</h2>
+          <div class="calls-table-wrap">
+            <table class="calls-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Lead</th>
+                  <th>Duration</th>
+                  <th>Contact</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="dashboardTableBody">
+                <tr><td colspan="6" class="empty">Loading...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-calls" class="tab-panel">
+        <div class="filters-bar">
+          <div class="filter-group">
+            <label>From</label>
+            <input type="date" id="filterFrom">
+          </div>
+          <div class="filter-group">
+            <label>To</label>
+            <input type="date" id="filterTo">
+          </div>
+          <div class="filter-group">
+            <label>Status</label>
+            <select id="filterStatus">
+              <option value="">All</option>
+              <option value="hot">Hot</option>
+              <option value="warm">Warm</option>
+              <option value="cold">Cold</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Type</label>
+            <select id="filterType">
+              <option value="">All</option>
+              <option value="inbound">Inbound</option>
+              <option value="outbound">Outbound</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <label>Phone</label>
+            <input type="text" id="filterPhone" placeholder="Search...">
+          </div>
+          <button type="button" id="applyFilters" class="btn btn-secondary">Apply</button>
+        </div>
+        <div class="calls-table-wrap">
+          <table class="calls-table">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Lead</th>
+                <th>Duration</th>
+                <th>Contact</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="callsTableBody">
+              <tr><td colspan="6" class="empty">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
 
   <div id="playbackModal" class="modal">
+    <div class="modal-backdrop"></div>
     <div class="modal-content">
-      <span class="modal-close">&times;</span>
-      <h3>Call recording</h3>
-      <div id="playbackArea"></div>
+      <div class="modal-header">
+        <h3>Call Recording</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body" id="playbackArea"></div>
     </div>
   </div>
 
-  <footer>
-    <a href="/call.html">Call Agent</a> · <a href="/health">Health</a> · <a href="/api/calls">API</a>
-  </footer>
+  <div id="detailModal" class="modal">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content modal-lg">
+      <div class="modal-header">
+        <h3>Call Details</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      <div class="modal-body" id="detailArea"></div>
+    </div>
+  </div>
 
   <script>
-    const tempColors = { hot: '#dc2626', warm: '#f59e0b', cold: '#6b7280' };
+    const tempColors = { hot: '#ef4444', warm: '#f59e0b', cold: '#6b7280' };
 
     function formatDuration(sec) {
-      if (!sec) return '—';
+      if (!sec) return '0:00';
       const m = Math.floor(sec / 60);
       const s = sec % 60;
       return `${m}:${s.toString().padStart(2, '0')}`;
@@ -108,17 +226,23 @@
     }
 
     function formatTime(iso) {
-      return new Date(iso).toLocaleString();
+      const d = new Date(iso);
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
     }
 
     function transcriptToHtml(transcript) {
-      if (!transcript || !Array.isArray(transcript)) return '<em>No transcript</em>';
+      if (!transcript || !Array.isArray(transcript) || !transcript.length) return '<p class="empty-text">No transcript available</p>';
       return transcript.map(t => {
         const role = t.role || 'unknown';
         const msg = t.message || t.content || '';
-        return `<div class="transcript-line ${role}"><strong>${role}:</strong> ${msg}</div>`;
+        const icon = role === 'assistant'
+          ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>'
+          : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+        return `<div class="transcript-msg ${role}"><span class="transcript-role">${icon} ${role}</span><span class="transcript-text">${msg}</span></div>`;
       }).join('');
     }
+
+    let allCalls = [];
 
     async function loadStats() {
       const params = new URLSearchParams();
@@ -128,11 +252,20 @@
       if (to) params.set('to', to);
       const res = await fetch('/api/stats?' + params);
       const stats = await res.json();
-      document.getElementById('totalCalls').textContent = stats.totalCalls;
+      animateValue('totalCalls', stats.totalCalls);
       document.getElementById('totalDuration').textContent = formatDurationLong(stats.totalDurationSeconds);
-      document.getElementById('hotCount').textContent = stats.hotCount;
-      document.getElementById('warmCount').textContent = stats.warmCount;
-      document.getElementById('coldCount').textContent = stats.coldCount;
+      animateValue('hotCount', stats.hotCount);
+      animateValue('warmCount', stats.warmCount);
+      animateValue('coldCount', stats.coldCount);
+    }
+
+    function animateValue(id, target) {
+      const el = document.getElementById(id);
+      const current = parseInt(el.textContent) || 0;
+      if (current === target) return;
+      el.textContent = target;
+      el.classList.add('value-pop');
+      setTimeout(() => el.classList.remove('value-pop'), 300);
     }
 
     function buildCallsParams() {
@@ -142,15 +275,11 @@
       const to = document.getElementById('filterTo')?.value;
       const status = document.getElementById('filterStatus')?.value;
       const type = document.getElementById('filterType')?.value;
-      const durationMin = document.getElementById('filterDurationMin')?.value;
-      const durationMax = document.getElementById('filterDurationMax')?.value;
       const phone = document.getElementById('filterPhone')?.value?.trim();
       if (from) p.set('from', from);
       if (to) p.set('to', to);
       if (status) p.set('status', status);
       if (type) p.set('type', type);
-      if (durationMin) p.set('durationMin', durationMin);
-      if (durationMax) p.set('durationMax', durationMax);
       if (phone) p.set('phone', phone);
       return p;
     }
@@ -158,98 +287,114 @@
     async function loadCalls() {
       const params = buildCallsParams();
       const res = await fetch('/api/calls?' + params);
-      const calls = await res.json();
-      renderCalls(calls);
-      if (document.getElementById('tab-dashboard').classList.contains('active')) {
-        loadStats();
-      }
+      allCalls = await res.json();
+      renderCalls(allCalls, 'callsTableBody');
+      renderCalls(allCalls.slice(0, 10), 'dashboardTableBody');
+      loadStats();
     }
 
-    function renderCalls(calls) {
-      const tbody = document.getElementById('callsTableBody');
+    function renderCalls(calls, tbodyId) {
+      const tbody = document.getElementById(tbodyId);
       if (!calls.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty">No calls yet. Make a call or run npm run demo:seed</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">No calls yet</td></tr>';
         return;
       }
       tbody.innerHTML = calls.map(c => {
         const contact = [c.callerName, c.callerPhone].filter(Boolean).join(' · ') || '—';
         const playBtn = c.recordingUrl
-          ? `<button class="btn-play" data-url="${c.recordingUrl}">▶ Play</button>`
-          : '<span class="no-recording">No recording</span>';
+          ? `<button class="btn btn-icon btn-play" data-url="${c.recordingUrl}" title="Play recording"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>`
+          : '';
         return `
-          <tr class="call-row" data-id="${c.callId}">
-            <td>${formatTime(c.timestamp)}</td>
+          <tr class="call-row">
+            <td><span class="cell-date">${formatTime(c.timestamp)}</span></td>
             <td><span class="badge type-${c.callType || 'inbound'}">${c.callType || 'inbound'}</span></td>
-            <td><span class="badge ${c.leadTemperature}" style="--temp-color:${tempColors[c.leadTemperature] || '#6b7280'}">${c.leadTemperature || '—'}</span></td>
-            <td>${formatDuration(c.duration)}</td>
-            <td>${contact}</td>
-            <td>
+            <td><span class="badge temp-${c.leadTemperature || 'cold'}">${c.leadTemperature || 'cold'}</span></td>
+            <td><span class="cell-duration">${formatDuration(c.duration)}</span></td>
+            <td><span class="cell-contact">${contact}</span></td>
+            <td class="cell-actions">
               ${playBtn}
-              <button class="btn-expand" data-id="${c.callId}">Details</button>
+              <button class="btn btn-icon btn-details" data-id="${c.callId}" title="View details">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+              </button>
             </td>
-          </tr>
-          <tr class="call-details-row" id="row-details-${c.callId}" style="display:none">
-            <td colspan="6">
-              <div class="call-expanded">
-                <div class="detail-row"><strong>Reason:</strong> ${c.classificationReason || '—'}</div>
-                ${c.summary ? `<div class="detail-row"><strong>Summary:</strong> ${c.summary}</div>` : ''}
-                ${Array.isArray(c.interestedActivities) && c.interestedActivities.length ? `<div class="detail-row"><strong>Interests:</strong> ${c.interestedActivities.join(', ')}</div>` : ''}
-                ${c.wantsCallback ? '<div class="detail-row"><strong>Callback:</strong> Yes</div>' : ''}
-                ${c.crmId ? `<div class="detail-row"><strong>CRM:</strong> ${c.crmProvider || 'amo'} #${c.crmId}</div>` : ''}
-                <div class="transcript">${transcriptToHtml(c.transcript)}</div>
-              </div>
-            </td>
-          </tr>
-        `;
+          </tr>`;
       }).join('');
 
       tbody.querySelectorAll('.btn-play').forEach(btn => {
-        btn.addEventListener('click', () => showPlayback(btn.dataset.url));
+        btn.addEventListener('click', (e) => { e.stopPropagation(); showPlayback(btn.dataset.url); });
       });
-      tbody.querySelectorAll('.btn-expand').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const id = btn.dataset.id;
-          const row = document.getElementById(`row-details-${id}`);
-          if (row) row.style.display = row.style.display === 'none' ? '' : 'none';
-        });
+      tbody.querySelectorAll('.btn-details').forEach(btn => {
+        btn.addEventListener('click', (e) => { e.stopPropagation(); showDetail(btn.dataset.id); });
       });
     }
 
     function showPlayback(url) {
-      const modal = document.getElementById('playbackModal');
       const area = document.getElementById('playbackArea');
-      area.innerHTML = `<audio src="${url}" controls></audio>`;
-      modal.classList.add('open');
+      area.innerHTML = `<audio src="${url}" controls autoplay style="width:100%"></audio>`;
+      openModal('playbackModal');
     }
 
-    document.querySelector('.modal-close').addEventListener('click', () => {
-      document.getElementById('playbackModal').classList.remove('open');
+    function showDetail(callId) {
+      const c = allCalls.find(x => x.callId === callId);
+      if (!c) return;
+      const area = document.getElementById('detailArea');
+      area.innerHTML = `
+        <div class="detail-grid">
+          <div class="detail-item"><span class="detail-label">Status</span><span class="badge temp-${c.leadTemperature}">${c.leadTemperature}</span></div>
+          <div class="detail-item"><span class="detail-label">Type</span><span class="badge type-${c.callType}">${c.callType}</span></div>
+          <div class="detail-item"><span class="detail-label">Duration</span><span>${formatDuration(c.duration)}</span></div>
+          <div class="detail-item"><span class="detail-label">Phone</span><span>${c.callerPhone || '—'}</span></div>
+          ${c.callerName ? `<div class="detail-item"><span class="detail-label">Name</span><span>${c.callerName}</span></div>` : ''}
+          ${c.crmId ? `<div class="detail-item"><span class="detail-label">CRM</span><span>${c.crmProvider || 'amo'} #${c.crmId}</span></div>` : ''}
+        </div>
+        ${c.classificationReason ? `<div class="detail-section"><h4>Classification Reason</h4><p>${c.classificationReason}</p></div>` : ''}
+        ${c.summary ? `<div class="detail-section"><h4>Summary</h4><p>${c.summary}</p></div>` : ''}
+        ${Array.isArray(c.interestedActivities) && c.interestedActivities.length ? `<div class="detail-section"><h4>Interests</h4><div class="tags">${c.interestedActivities.map(a => `<span class="tag">${a}</span>`).join('')}</div></div>` : ''}
+        ${c.recordingUrl ? `<div class="detail-section"><h4>Recording</h4><audio src="${c.recordingUrl}" controls style="width:100%"></audio></div>` : ''}
+        <div class="detail-section"><h4>Transcript</h4><div class="transcript-box">${transcriptToHtml(c.transcript)}</div></div>
+      `;
+      openModal('detailModal');
+    }
+
+    function openModal(id) {
+      document.getElementById(id).classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('open');
+      document.body.style.overflow = '';
+      const audio = document.getElementById(id).querySelector('audio');
+      if (audio) audio.pause();
+    }
+
+    document.querySelectorAll('.modal-close').forEach(btn => {
+      btn.addEventListener('click', () => closeModal(btn.closest('.modal').id));
     });
-    document.getElementById('playbackModal').addEventListener('click', (e) => {
-      if (e.target.id === 'playbackModal') e.target.classList.remove('open');
+    document.querySelectorAll('.modal-backdrop').forEach(el => {
+      el.addEventListener('click', () => closeModal(el.closest('.modal').id));
     });
 
-    document.querySelectorAll('.tab').forEach(tab => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.nav-item[data-tab]').forEach(item => {
+      item.addEventListener('click', () => {
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-        tab.classList.add('active');
-        document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
-        if (tab.dataset.tab === 'dashboard') loadStats();
-        if (tab.dataset.tab === 'calls') loadCalls();
+        item.classList.add('active');
+        const tab = item.dataset.tab;
+        document.getElementById(`tab-${tab}`).classList.add('active');
+        document.getElementById('pageTitle').textContent = tab === 'dashboard' ? 'Dashboard' : 'Calls';
+        if (tab === 'calls') loadCalls();
       });
     });
 
-    document.getElementById('applyFilters').addEventListener('click', () => {
-      loadCalls();
-      loadStats();
-    });
+    document.getElementById('applyFilters').addEventListener('click', () => { loadCalls(); });
 
     document.getElementById('outboundForm').addEventListener('submit', async (e) => {
       e.preventDefault();
       const form = e.target;
       const btn = form.querySelector('button[type="submit"]');
       btn.disabled = true;
+      btn.classList.add('loading');
       try {
         const res = await fetch('/api/calls/outbound', {
           method: 'POST',
@@ -260,21 +405,33 @@
           }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed to start call');
-        alert(`Call started: ${data.callId || 'OK'}`);
+        if (!res.ok) throw new Error(data.error || 'Failed');
+        showToast(`Call started: ${data.callId || 'OK'}`, 'success');
         form.reset();
-        loadCalls();
-        loadStats();
+        setTimeout(loadCalls, 3000);
       } catch (err) {
-        alert(err.message);
+        showToast(err.message, 'error');
       } finally {
         btn.disabled = false;
+        btn.classList.remove('loading');
       }
     });
 
+    function showToast(msg, type = 'info') {
+      const toast = document.createElement('div');
+      toast.className = `toast toast-${type}`;
+      toast.textContent = msg;
+      document.body.appendChild(toast);
+      requestAnimationFrame(() => toast.classList.add('show'));
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
     loadStats();
     loadCalls();
-    setInterval(() => { loadStats(); loadCalls(); }, 10000);
+    setInterval(() => { loadStats(); loadCalls(); }, 15000);
   </script>
 </body>
 </html>
