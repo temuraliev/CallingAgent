@@ -304,6 +304,16 @@ app.get('/api/config', (req, res) => {
 app.get('/api/settings', async (req, res) => {
   try {
     const settings = await loadSettings();
+    // If local settings are empty, try to load from VAPI assistant
+    const assistantId = process.env.VAPI_ASSISTANT_ID;
+    if (vapi && assistantId && !settings._synced) {
+      try {
+        const assistant = await vapi.assistants.get(assistantId);
+        const vapiPrompt = assistant.model?.messages?.find(m => m.role === 'system')?.content;
+        if (vapiPrompt && !settings.systemPrompt) settings.systemPrompt = vapiPrompt;
+        if (assistant.firstMessage && !settings.firstMessage) settings.firstMessage = assistant.firstMessage;
+      } catch (_) { /* ignore */ }
+    }
     res.json(settings);
   } catch (err) {
     console.error('Load settings error:', err);
@@ -318,6 +328,25 @@ app.post('/api/settings', async (req, res) => {
     if (typeof systemPrompt === 'string') updates.systemPrompt = systemPrompt;
     if (typeof firstMessage === 'string') updates.firstMessage = firstMessage;
     const saved = await saveSettings(updates);
+
+    // Sync to VAPI assistant so changes apply to inbound calls too
+    const assistantId = process.env.VAPI_ASSISTANT_ID;
+    if (vapi && assistantId && (saved.systemPrompt || saved.firstMessage)) {
+      try {
+        const patch = {};
+        if (saved.firstMessage) patch.firstMessage = saved.firstMessage;
+        if (saved.systemPrompt) {
+          patch.model = {
+            messages: [{ role: 'system', content: saved.systemPrompt }],
+          };
+        }
+        await vapi.assistants.update(assistantId, patch);
+        console.log('VAPI assistant updated with new settings');
+      } catch (vapiErr) {
+        console.error('Failed to sync settings to VAPI:', vapiErr.message);
+      }
+    }
+
     res.json(saved);
   } catch (err) {
     console.error('Save settings error:', err);
