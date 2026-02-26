@@ -1,7 +1,7 @@
 import 'dotenv/config';
 import express from 'express';
 import { VapiClient } from '@vapi-ai/server-sdk';
-import { classifyLead } from './services/classifier.js';
+import { classifyLead, translateToRussian } from './services/classifier.js';
 import { createLead } from './services/amo-client.js';
 import { createDeal } from './services/bitrix-client.js';
 import { saveCall, updateCall, listCalls, getStats, updateCallByPhone } from './services/storage.js';
@@ -47,11 +47,13 @@ app.post('/webhook/vapi', async (req, res) => {
   const callId = call.id || call.callId || call.call?.id;
   const summary = msg.summary || '';
 
-  console.log('[WEBHOOK DEBUG] callId:', callId, '| duration:', call.duration,
-    '| startedAt:', call.startedAt, '| endedAt:', call.endedAt,
-    '| createdAt:', call.createdAt, '| updatedAt:', call.updatedAt,
-    '| msg.startedAt:', msg.startedAt, '| msg.endedAt:', msg.endedAt,
-    '| call keys:', Object.keys(call).join(', '));
+  console.log('[WEBHOOK DEBUG] msg keys:', Object.keys(msg).join(', '),
+    '| call keys:', Object.keys(call).join(', '),
+    '| msg.artifact keys:', msg.artifact ? Object.keys(msg.artifact).join(', ') : 'none',
+    '| msg.transcript type:', typeof msg.transcript, '| msg.transcript length:', (msg.transcript || '').length,
+    '| call.artifact keys:', call.artifact ? Object.keys(call.artifact).join(', ') : 'none',
+    '| callId:', callId, '| duration:', call.duration,
+    '| startedAt:', call.startedAt, '| endedAt:', call.endedAt);
 
   const from =
     call.customer?.number ||
@@ -86,8 +88,14 @@ app.post('/webhook/vapi', async (req, res) => {
     call.recordingUrl ||
     null;
 
-  let transcript = transcriptToText(call.artifact);
-  let transcriptForStorage = call.artifact?.messages || call.artifact?.transcript || [];
+  // VAPI puts artifact at message level (msg.artifact), not call level
+  const artifact = msg.artifact || call.artifact || {};
+  let transcript = transcriptToText(artifact);
+  // msg.transcript is a plain-text fallback VAPI also provides
+  if (!transcript && typeof msg.transcript === 'string' && msg.transcript.trim()) {
+    transcript = msg.transcript.trim();
+  }
+  let transcriptForStorage = artifact.messages || artifact.transcript || [];
 
   // VAPI API requires callId to be a valid UUID; webhook may send other formats
   const isValidUuid = callId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(callId));
@@ -99,6 +107,7 @@ app.post('/webhook/vapi', async (req, res) => {
       || obj.messages
       || obj.transcript
       || obj.artifact?.messagesOpenAIFormatted
+      || obj.artifactPlan?.messages
       || [];
   }
 
@@ -161,6 +170,14 @@ app.post('/webhook/vapi', async (req, res) => {
     console.error('Lead classification failed (call will be saved as cold):', err.message);
   }
 
+  // Translate summary to Russian if it came in English from VAPI
+  let summaryRu = summary;
+  if (summary) {
+    try {
+      summaryRu = await translateToRussian(summary);
+    } catch { summaryRu = summary; }
+  }
+
   try {
     const storedCall = createStoredCall({
       callId: callId || `unknown-${Date.now()}`,
@@ -171,7 +188,7 @@ app.post('/webhook/vapi', async (req, res) => {
       duration,
       recordingUrl,
       transcript: transcriptForStorage,
-      summary,
+      summary: summaryRu,
       leadTemperature: temperature,
       classificationReason: reason || '',
       crmId: null,
