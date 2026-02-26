@@ -87,18 +87,26 @@ app.post('/webhook/vapi', async (req, res) => {
     null;
 
   let transcript = transcriptToText(call.artifact);
+  let transcriptForStorage = call.artifact?.messages || call.artifact?.transcript || [];
 
   // VAPI API requires callId to be a valid UUID; webhook may send other formats
   const isValidUuid = callId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(callId));
 
-  // Fetch full call from VAPI API when we need transcript or duration
-  if (vapi && isValidUuid && (!transcript || duration === 0)) {
+  // Fetch full call from VAPI API to fill in missing data (transcript, duration)
+  if (vapi && isValidUuid && (!transcript || duration === 0 || transcriptForStorage.length === 0)) {
     try {
       const fullCall = await vapi.calls.get(callId);
       console.log('[VAPI API DEBUG] fullCall keys:', Object.keys(fullCall).join(', '),
         '| startedAt:', fullCall.startedAt, '| endedAt:', fullCall.endedAt,
-        '| duration:', fullCall.duration);
+        '| duration:', fullCall.duration,
+        '| artifact messages count:', fullCall.artifact?.messages?.length || 0);
+
       if (!transcript) transcript = transcriptToText(fullCall.artifact);
+
+      if (transcriptForStorage.length === 0) {
+        transcriptForStorage = fullCall.artifact?.messages || fullCall.artifact?.transcript || [];
+      }
+
       if (duration === 0) {
         if (typeof fullCall.duration === 'number' && fullCall.duration >= 0) {
           duration = fullCall.duration;
@@ -118,9 +126,7 @@ app.post('/webhook/vapi', async (req, res) => {
       console.error('Failed to fetch call from VAPI:', err.message);
     }
   }
-  console.log('[DURATION RESULT] callId:', callId, '| duration:', duration, 'sec');
-
-  const transcriptForStorage = call.artifact?.messages || call.artifact?.transcript || [];
+  console.log('[DURATION RESULT] callId:', callId, '| duration:', duration, 'sec | transcript msgs:', transcriptForStorage.length);
 
   let temperature = 'cold';
   let reason = '';
