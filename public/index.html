@@ -32,6 +32,10 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
           Позвонить
         </a>
+        <button class="nav-item" data-tab="settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          Настройки
+        </button>
       </nav>
       <div class="sidebar-footer">
         <a href="/health" class="nav-item nav-link">
@@ -179,6 +183,31 @@
               <tr><td colspan="6" class="empty">Загрузка...</td></tr>
             </tbody>
           </table>
+        </div>
+      </section>
+
+      <section id="tab-settings" class="tab-panel">
+        <div class="settings-form">
+          <div class="settings-card">
+            <h2 class="section-title">Настройки ассистента</h2>
+            <p class="settings-desc">Эти настройки применяются к исходящим звонкам. System Prompt определяет поведение и сценарий ассистента, First Message — первая фраза при звонке.</p>
+
+            <div class="form-group">
+              <label for="settingsFirstMessage">Первое сообщение</label>
+              <textarea id="settingsFirstMessage" rows="3" placeholder="Алло, здравствуйте! Это..."></textarea>
+            </div>
+
+            <div class="form-group">
+              <label for="settingsSystemPrompt">System Prompt</label>
+              <textarea id="settingsSystemPrompt" rows="18" placeholder="Ты — AI-ассистент компании..."></textarea>
+            </div>
+
+            <div class="settings-actions">
+              <button type="button" id="saveSettings" class="btn btn-primary">Сохранить</button>
+              <button type="button" id="resetSettings" class="btn btn-secondary">Сбросить по умолчанию</button>
+              <span id="settingsStatus" class="settings-status"></span>
+            </div>
+          </div>
         </div>
       </section>
     </main>
@@ -389,12 +418,64 @@
         item.classList.add('active');
         const tab = item.dataset.tab;
         document.getElementById(`tab-${tab}`).classList.add('active');
-        document.getElementById('pageTitle').textContent = tab === 'dashboard' ? 'Панель управления' : 'Звонки';
+        const titles = { dashboard: 'Панель управления', calls: 'Звонки', settings: 'Настройки' };
+        document.getElementById('pageTitle').textContent = titles[tab] || tab;
         if (tab === 'calls') loadCalls();
+        if (tab === 'settings') loadSettingsForm();
       });
     });
 
     document.getElementById('applyFilters').addEventListener('click', () => { loadCalls(); });
+
+    // ── Settings ──
+    async function loadSettingsForm() {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        document.getElementById('settingsSystemPrompt').value = data.systemPrompt || '';
+        document.getElementById('settingsFirstMessage').value = data.firstMessage || '';
+      } catch (err) {
+        showToast('Не удалось загрузить настройки', 'error');
+      }
+    }
+
+    document.getElementById('saveSettings').addEventListener('click', async () => {
+      const btn = document.getElementById('saveSettings');
+      btn.disabled = true;
+      try {
+        const body = {
+          systemPrompt: document.getElementById('settingsSystemPrompt').value,
+          firstMessage: document.getElementById('settingsFirstMessage').value,
+        };
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error('Ошибка сохранения');
+        showToast('Настройки сохранены', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('resetSettings').addEventListener('click', async () => {
+      if (!confirm('Сбросить настройки по умолчанию?')) return;
+      try {
+        const res = await fetch('/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ systemPrompt: '', firstMessage: '' }),
+        });
+        if (!res.ok) throw new Error('Ошибка');
+        await loadSettingsForm();
+        showToast('Настройки сброшены', 'success');
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    });
 
     document.getElementById('outboundForm').addEventListener('submit', async (e) => {
       e.preventDefault();

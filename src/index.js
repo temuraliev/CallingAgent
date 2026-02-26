@@ -5,6 +5,7 @@ import { classifyLead, translateToRussian } from './services/classifier.js';
 import { createLead } from './services/amo-client.js';
 import { createDeal } from './services/bitrix-client.js';
 import { saveCall, updateCall, listCalls, getStats, updateCallByPhone } from './services/storage.js';
+import { loadSettings, saveSettings } from './services/settings.js';
 import { createStoredCall } from './schemas/call.js';
 
 const app = express();
@@ -300,6 +301,30 @@ app.get('/api/config', (req, res) => {
   res.json({ vapiPublicKey: publicKey, vapiAssistantId: assistantId });
 });
 
+app.get('/api/settings', async (req, res) => {
+  try {
+    const settings = await loadSettings();
+    res.json(settings);
+  } catch (err) {
+    console.error('Load settings error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/settings', async (req, res) => {
+  try {
+    const { systemPrompt, firstMessage } = req.body || {};
+    const updates = {};
+    if (typeof systemPrompt === 'string') updates.systemPrompt = systemPrompt;
+    if (typeof firstMessage === 'string') updates.firstMessage = firstMessage;
+    const saved = await saveSettings(updates);
+    res.json(saved);
+  } catch (err) {
+    console.error('Save settings error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/calls', async (req, res) => {
   try {
     const opts = {
@@ -342,35 +367,49 @@ app.get('/api/stats', async (req, res) => {
  */
 app.post('/api/calls/outbound', async (req, res) => {
   if (!vapi) {
-    return res.status(503).json({ error: 'VAPI not configured. Set VAPI_API_KEY.' });
+    return res.status(503).json({ error: 'VAPI не настроен. Укажите VAPI_API_KEY.' });
   }
   const phoneNumberId = process.env.VAPI_PHONE_NUMBER_ID;
   const assistantId = req.body?.assistantId || process.env.VAPI_ASSISTANT_ID;
   if (!phoneNumberId || !assistantId) {
     return res.status(400).json({
-      error: 'Missing config. Set VAPI_PHONE_NUMBER_ID and VAPI_ASSISTANT_ID (or pass assistantId in body).',
+      error: 'Не указаны VAPI_PHONE_NUMBER_ID и VAPI_ASSISTANT_ID.',
     });
   }
   const phoneNumber = req.body?.phoneNumber?.trim();
   if (!phoneNumber) {
-    return res.status(400).json({ error: 'phoneNumber is required' });
+    return res.status(400).json({ error: 'Укажите номер телефона' });
   }
   const customer = { number: phoneNumber };
   if (req.body?.customerName?.trim()) {
     customer.name = req.body.customerName.trim();
   }
   try {
-    const result = await vapi.calls.create({
+    const settings = await loadSettings();
+    const callParams = {
       assistantId,
       phoneNumberId,
       customer,
-    });
+    };
+    // Override assistant settings if custom systemPrompt or firstMessage are set
+    if (settings.systemPrompt || settings.firstMessage) {
+      callParams.assistantOverrides = {};
+      if (settings.firstMessage) {
+        callParams.assistantOverrides.firstMessage = settings.firstMessage;
+      }
+      if (settings.systemPrompt) {
+        callParams.assistantOverrides.model = {
+          messages: [{ role: 'system', content: settings.systemPrompt }],
+        };
+      }
+    }
+    const result = await vapi.calls.create(callParams);
     const callId = result?.id ?? result?.callId ?? null;
     const status = result?.status ?? 'started';
     res.status(201).json({ callId, status });
   } catch (err) {
     console.error('Outbound call error:', err);
-    res.status(500).json({ error: err.message || 'Failed to start outbound call' });
+    res.status(500).json({ error: err.message || 'Не удалось запустить звонок' });
   }
 });
 
