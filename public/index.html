@@ -193,6 +193,8 @@
               <div class="call-expanded">
                 <div class="detail-row"><strong>Reason:</strong> ${c.classificationReason || '—'}</div>
                 ${c.summary ? `<div class="detail-row"><strong>Summary:</strong> ${c.summary}</div>` : ''}
+                ${Array.isArray(c.interestedActivities) && c.interestedActivities.length ? `<div class="detail-row"><strong>Interests:</strong> ${c.interestedActivities.join(', ')}</div>` : ''}
+                ${c.wantsCallback ? '<div class="detail-row"><strong>Callback:</strong> Yes</div>' : ''}
                 ${c.crmId ? `<div class="detail-row"><strong>CRM:</strong> ${c.crmProvider || 'amo'} #${c.crmId}</div>` : ''}
                 <div class="transcript">${transcriptToHtml(c.transcript)}</div>
               </div>

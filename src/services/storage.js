@@ -133,6 +133,34 @@ export async function listCalls(opts = {}) {
 }
 
 /**
+ * Finds the most recent call matching the given phone number.
+ * @param {string} phone - Phone number (digits matched, substring ok)
+ * @returns {Promise<Object|null>} Call object or null
+ */
+export async function findLatestCallByPhone(phone) {
+  if (!phone || !String(phone).trim()) return null;
+  const calls = await loadAllCalls();
+  const p = String(phone).replace(/\D/g, '');
+  if (!p) return null;
+  const match = calls.find((c) => (c.callerPhone || '').replace(/\D/g, '').includes(p) || p.includes((c.callerPhone || '').replace(/\D/g, '')));
+  return match || null;
+}
+
+/**
+ * Updates the most recent call for a given phone with lead classification data.
+ * @param {string} phone - Phone number
+ * @param {Object} updates - Fields to update
+ * @returns {Promise<boolean>} True if updated, false if no matching call
+ */
+export async function updateCallByPhone(phone, updates) {
+  const call = await findLatestCallByPhone(phone);
+  if (!call) return false;
+  const dateStr = call.timestamp ? call.timestamp.slice(0, 10) : new Date().toISOString().slice(0, 10);
+  await updateCall(call.callId, updates, dateStr);
+  return true;
+}
+
+/**
  * Returns aggregate stats for dashboard.
  * @param {Object} [opts] - Optional filters (from, to)
  * @returns {Promise<{ totalCalls: number, totalDurationSeconds: number, hotCount: number, warmCount: number, coldCount: number }>}

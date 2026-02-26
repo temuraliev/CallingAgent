@@ -4,7 +4,7 @@ import { VapiClient } from '@vapi-ai/server-sdk';
 import { classifyLead } from './services/classifier.js';
 import { createLead } from './services/amo-client.js';
 import { createDeal } from './services/bitrix-client.js';
-import { saveCall, updateCall, listCalls, getStats } from './services/storage.js';
+import { saveCall, updateCall, listCalls, getStats, updateCallByPhone } from './services/storage.js';
 import { createStoredCall } from './schemas/call.js';
 
 const app = express();
@@ -151,6 +151,44 @@ app.post('/webhook/vapi', async (req, res) => {
   } catch (err) {
     console.error('Webhook processing error:', err);
   }
+});
+
+/**
+ * Receives lead classification from VAPI (tool/function webhook).
+ * Payload: { name, phone, interestLevel, notes, interestedActivities, wantsCallback }
+ * Updates the most recent call for that phone with the classification.
+ */
+app.post('/webhook/lead-classification', (req, res) => {
+  res.sendStatus(200);
+
+  const { name, phone, interestLevel, notes, interestedActivities, wantsCallback } = req.body || {};
+  if (!phone) {
+    console.warn('Lead classification webhook: missing phone');
+    return;
+  }
+
+  const updates = {
+    leadTemperature: ['cold', 'warm', 'hot'].includes(String(interestLevel || '').toLowerCase())
+      ? String(interestLevel).toLowerCase()
+      : undefined,
+    classificationReason: notes ? `VAPI: ${notes}` : undefined,
+    callerName: name || undefined,
+  };
+  if (Array.isArray(interestedActivities) && interestedActivities.length > 0) {
+    updates.interestedActivities = interestedActivities;
+  }
+  if (typeof wantsCallback === 'boolean') {
+    updates.wantsCallback = wantsCallback;
+  }
+
+  const clean = Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined));
+
+  updateCallByPhone(phone, clean)
+    .then((ok) => {
+      if (ok) console.log(`Lead classification updated for ${phone}: ${interestLevel || 'N/A'}`);
+      else console.warn(`Lead classification: no call found for phone ${phone}`);
+    })
+    .catch((err) => console.error('Lead classification webhook error:', err));
 });
 
 app.get('/health', (req, res) => {

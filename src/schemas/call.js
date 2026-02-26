@@ -14,6 +14,8 @@
  * @property {string} classificationReason - Reason for the classification
  * @property {string|null} crmId - CRM entity ID (lead/deal) if synced
  * @property {string|null} [crmProvider] - 'amo' | 'bitrix'
+ * @property {string[]} [interestedActivities] - From VAPI lead classification (e.g. ["gym", "yoga"])
+ * @property {boolean} [wantsCallback] - From VAPI lead classification
  * @property {string|null} [amoLeadId] - Deprecated, use crmId
  */
 

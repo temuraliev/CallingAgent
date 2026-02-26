@@ -52,6 +52,10 @@ ngrok http 3000
 
 Set the webhook URL in your VAPI assistant: `https://YOUR_NGROK_URL/webhook/vapi`
 
+**Lead classification webhook** (optional): If VAPI sends lead classification via a tool/function, use:
+`https://YOUR_DOMAIN/webhook/lead-classification`
+Payload: `{ name, phone, interestLevel, notes, interestedActivities, wantsCallback }`
+
 ### 5. Demo Commands
 
 ```bash
