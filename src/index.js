@@ -329,21 +329,46 @@ app.post('/api/settings', async (req, res) => {
     if (typeof firstMessage === 'string') updates.firstMessage = firstMessage;
     const saved = await saveSettings(updates);
 
-    // Sync to VAPI assistant so changes apply to inbound calls too
+    // Sync to VAPI assistant via REST API so changes apply to all calls
     const assistantId = process.env.VAPI_ASSISTANT_ID;
-    if (vapi && assistantId && (saved.systemPrompt || saved.firstMessage)) {
+    const vapiKey = process.env.VAPI_API_KEY;
+    if (vapiKey && assistantId && (saved.systemPrompt || saved.firstMessage)) {
       try {
-        // First, get current assistant to preserve model provider/model fields
-        const current = await vapi.assistants.get(assistantId);
+        // Get current assistant to preserve model config
+        const getRes = await fetch(`https://api.vapi.ai/assistant/${assistantId}`, {
+          headers: { Authorization: `Bearer ${vapiKey}` },
+        });
+        if (!getRes.ok) throw new Error(`GET assistant failed: ${getRes.status}`);
+        const current = await getRes.json();
+
         const patch = {};
         if (saved.firstMessage) patch.firstMessage = saved.firstMessage;
-        if (saved.systemPrompt) {
+        if (saved.systemPrompt && current.model) {
           patch.model = {
-            ...current.model,
+            provider: current.model.provider,
+            model: current.model.model,
             messages: [{ role: 'system', content: saved.systemPrompt }],
           };
+          if (current.model.temperature != null) patch.model.temperature = current.model.temperature;
+          if (current.model.maxTokens != null) patch.model.maxTokens = current.model.maxTokens;
         }
-        await vapi.assistants.update(assistantId, patch);
+
+        console.log('[VAPI SYNC] Sending patch:', JSON.stringify(patch).slice(0, 300));
+
+        const patchRes = await fetch(`https://api.vapi.ai/assistant/${assistantId}`, {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${vapiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(patch),
+        });
+
+        if (!patchRes.ok) {
+          const errBody = await patchRes.text();
+          throw new Error(`PATCH failed ${patchRes.status}: ${errBody}`);
+        }
+
         console.log('VAPI assistant updated successfully');
         saved._vapiSynced = true;
       } catch (vapiErr) {
