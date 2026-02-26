@@ -46,6 +46,13 @@ app.post('/webhook/vapi', async (req, res) => {
   const call = msg.call || {};
   const callId = call.id || call.callId || call.call?.id;
   const summary = msg.summary || '';
+
+  console.log('[WEBHOOK DEBUG] callId:', callId, '| duration:', call.duration,
+    '| startedAt:', call.startedAt, '| endedAt:', call.endedAt,
+    '| createdAt:', call.createdAt, '| updatedAt:', call.updatedAt,
+    '| msg.startedAt:', msg.startedAt, '| msg.endedAt:', msg.endedAt,
+    '| call keys:', Object.keys(call).join(', '));
+
   const from =
     call.customer?.number ||
     call.from?.phoneNumber ||
@@ -54,13 +61,15 @@ app.post('/webhook/vapi', async (req, res) => {
     '';
   const callerName =
     call.customer?.name || call.from?.name || call.customer?.firstName || '';
-  // VAPI does not send call.duration; calculate from timestamps
+
   let duration = 0;
   if (typeof call.duration === 'number' && call.duration >= 0) {
     duration = call.duration;
+  } else if (typeof msg.duration === 'number' && msg.duration >= 0) {
+    duration = msg.duration;
   } else {
-    const startedAt = call.startedAt ? new Date(call.startedAt).getTime() : null;
-    const endedAt = call.endedAt ? new Date(call.endedAt).getTime() : null;
+    const startedAt = (call.startedAt || msg.startedAt) ? new Date(call.startedAt || msg.startedAt).getTime() : null;
+    const endedAt = (call.endedAt || msg.endedAt) ? new Date(call.endedAt || msg.endedAt).getTime() : null;
     if (startedAt && endedAt && endedAt > startedAt) {
       duration = Math.round((endedAt - startedAt) / 1000);
     } else if (call.createdAt && call.updatedAt) {
@@ -82,26 +91,34 @@ app.post('/webhook/vapi', async (req, res) => {
   // VAPI API requires callId to be a valid UUID; webhook may send other formats
   const isValidUuid = callId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(callId));
 
-  // Fetch full call from VAPI API when we need transcript or duration (webhook payload often lacks timestamps)
+  // Fetch full call from VAPI API when we need transcript or duration
   if (vapi && isValidUuid && (!transcript || duration === 0)) {
     try {
       const fullCall = await vapi.calls.get(callId);
+      console.log('[VAPI API DEBUG] fullCall keys:', Object.keys(fullCall).join(', '),
+        '| startedAt:', fullCall.startedAt, '| endedAt:', fullCall.endedAt,
+        '| duration:', fullCall.duration);
       if (!transcript) transcript = transcriptToText(fullCall.artifact);
-      if (duration === 0 && (fullCall.startedAt || fullCall.endedAt)) {
-        const started = fullCall.startedAt ? new Date(fullCall.startedAt).getTime() : null;
-        const ended = fullCall.endedAt ? new Date(fullCall.endedAt).getTime() : null;
-        if (started && ended && ended > started) {
-          duration = Math.round((ended - started) / 1000);
-        } else if (fullCall.createdAt && fullCall.updatedAt) {
-          const created = new Date(fullCall.createdAt).getTime();
-          const updated = new Date(fullCall.updatedAt).getTime();
-          duration = Math.max(0, Math.round((updated - created) / 1000));
+      if (duration === 0) {
+        if (typeof fullCall.duration === 'number' && fullCall.duration >= 0) {
+          duration = fullCall.duration;
+        } else {
+          const started = fullCall.startedAt ? new Date(fullCall.startedAt).getTime() : null;
+          const ended = fullCall.endedAt ? new Date(fullCall.endedAt).getTime() : null;
+          if (started && ended && ended > started) {
+            duration = Math.round((ended - started) / 1000);
+          } else if (fullCall.createdAt && fullCall.updatedAt) {
+            const created = new Date(fullCall.createdAt).getTime();
+            const updated = new Date(fullCall.updatedAt).getTime();
+            duration = Math.max(0, Math.round((updated - created) / 1000));
+          }
         }
       }
     } catch (err) {
       console.error('Failed to fetch call from VAPI:', err.message);
     }
   }
+  console.log('[DURATION RESULT] callId:', callId, '| duration:', duration, 'sec');
 
   const transcriptForStorage = call.artifact?.messages || call.artifact?.transcript || [];
 
