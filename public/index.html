@@ -10,24 +10,79 @@
   <header>
     <h1>Calling Agent</h1>
     <p class="subtitle">AI voice calls → JSON storage → Lead classification</p>
-    <a href="/call.html" style="color:#12A594;font-size:0.9rem;">📞 Call AI Agent</a>
+    <div class="header-actions">
+      <form id="outboundForm" class="outbound-form">
+        <input type="tel" name="phoneNumber" placeholder="+1 234 567 8900" required>
+        <input type="text" name="customerName" placeholder="Name (optional)">
+        <button type="submit">📞 Start outbound call</button>
+      </form>
+      <a href="/call.html" style="color:#12A594;font-size:0.9rem;">📞 Call AI Agent</a>
+    </div>
   </header>
 
   <main>
-    <section class="stats" id="stats">
-      <div class="stat"><span class="stat-value" id="totalCalls">0</span><span class="stat-label">Total calls</span></div>
-      <div class="stat"><span class="stat-value" id="hotCount">0</span><span class="stat-label">Hot leads</span></div>
-      <div class="stat"><span class="stat-value" id="warmCount">0</span><span class="stat-label">Warm leads</span></div>
-      <div class="stat"><span class="stat-value" id="coldCount">0</span><span class="stat-label">Cold leads</span></div>
+    <nav class="tabs">
+      <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="calls">Call List</button>
+    </nav>
+
+    <section id="tab-dashboard" class="tab-panel active">
+      <div class="stats" id="stats">
+        <div class="stat"><span class="stat-value" id="totalCalls">0</span><span class="stat-label">Total calls</span></div>
+        <div class="stat"><span class="stat-value" id="totalDuration">0:00</span><span class="stat-label">Total duration</span></div>
+        <div class="stat"><span class="stat-value" id="hotCount">0</span><span class="stat-label">Hot leads</span></div>
+        <div class="stat"><span class="stat-value" id="warmCount">0</span><span class="stat-label">Warm leads</span></div>
+        <div class="stat"><span class="stat-value" id="coldCount">0</span><span class="stat-label">Cold leads</span></div>
+      </div>
     </section>
 
-    <section class="calls">
-      <h2>Recent calls</h2>
-      <div id="callsList">
-        <p class="empty" id="emptyMsg">Loading…</p>
+    <section id="tab-calls" class="tab-panel">
+      <div class="filters-bar">
+        <input type="date" id="filterFrom" placeholder="From">
+        <input type="date" id="filterTo" placeholder="To">
+        <select id="filterStatus">
+          <option value="">All statuses</option>
+          <option value="hot">Hot</option>
+          <option value="warm">Warm</option>
+          <option value="cold">Cold</option>
+        </select>
+        <select id="filterType">
+          <option value="">All types</option>
+          <option value="inbound">Inbound</option>
+          <option value="outbound">Outbound</option>
+        </select>
+        <input type="number" id="filterDurationMin" placeholder="Min sec" min="0" style="width:80px">
+        <input type="number" id="filterDurationMax" placeholder="Max sec" min="0" style="width:80px">
+        <input type="text" id="filterPhone" placeholder="Phone search">
+        <button type="button" id="applyFilters">Apply</button>
+      </div>
+      <div class="calls-table-wrap">
+        <table class="calls-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              <th>Lead</th>
+              <th>Duration</th>
+              <th>Contact</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="callsTableBody">
+            <tr><td colspan="6" class="empty">Loading…</td></tr>
+          </tbody>
+        </table>
       </div>
     </section>
   </main>
+
+  <div id="playbackModal" class="modal">
+    <div class="modal-content">
+      <span class="modal-close">&times;</span>
+      <h3>Call recording</h3>
+      <div id="playbackArea"></div>
+    </div>
+  </div>
 
   <footer>
     <a href="/call.html">Call Agent</a> · <a href="/health">Health</a> · <a href="/api/calls">API</a>
@@ -36,33 +91,24 @@
   <script>
     const tempColors = { hot: '#dc2626', warm: '#f59e0b', cold: '#6b7280' };
 
-    async function loadCalls() {
-      const res = await fetch('/api/calls?limit=50');
-      const calls = await res.json();
-      renderCalls(calls);
-      renderStats(calls);
-    }
-
-    function renderStats(calls) {
-      const hot = calls.filter(c => c.leadTemperature === 'hot').length;
-      const warm = calls.filter(c => c.leadTemperature === 'warm').length;
-      const cold = calls.filter(c => c.leadTemperature === 'cold').length;
-      document.getElementById('totalCalls').textContent = calls.length;
-      document.getElementById('hotCount').textContent = hot;
-      document.getElementById('warmCount').textContent = warm;
-      document.getElementById('coldCount').textContent = cold;
-    }
-
-    function formatTime(iso) {
-      const d = new Date(iso);
-      return d.toLocaleString();
-    }
-
     function formatDuration(sec) {
       if (!sec) return '—';
       const m = Math.floor(sec / 60);
       const s = sec % 60;
       return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function formatDurationLong(sec) {
+      if (!sec) return '0:00';
+      const h = Math.floor(sec / 3600);
+      const m = Math.floor((sec % 3600) / 60);
+      const s = sec % 60;
+      if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      return `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function formatTime(iso) {
+      return new Date(iso).toLocaleString();
     }
 
     function transcriptToHtml(transcript) {
@@ -74,43 +120,159 @@
       }).join('');
     }
 
-    function renderCalls(calls) {
-      const el = document.getElementById('callsList');
-      const empty = document.getElementById('emptyMsg');
+    async function loadStats() {
+      const params = new URLSearchParams();
+      const from = document.getElementById('filterFrom')?.value;
+      const to = document.getElementById('filterTo')?.value;
+      if (from) params.set('from', from);
+      if (to) params.set('to', to);
+      const res = await fetch('/api/stats?' + params);
+      const stats = await res.json();
+      document.getElementById('totalCalls').textContent = stats.totalCalls;
+      document.getElementById('totalDuration').textContent = formatDurationLong(stats.totalDurationSeconds);
+      document.getElementById('hotCount').textContent = stats.hotCount;
+      document.getElementById('warmCount').textContent = stats.warmCount;
+      document.getElementById('coldCount').textContent = stats.coldCount;
+    }
 
+    function buildCallsParams() {
+      const p = new URLSearchParams();
+      p.set('limit', '50');
+      const from = document.getElementById('filterFrom')?.value;
+      const to = document.getElementById('filterTo')?.value;
+      const status = document.getElementById('filterStatus')?.value;
+      const type = document.getElementById('filterType')?.value;
+      const durationMin = document.getElementById('filterDurationMin')?.value;
+      const durationMax = document.getElementById('filterDurationMax')?.value;
+      const phone = document.getElementById('filterPhone')?.value?.trim();
+      if (from) p.set('from', from);
+      if (to) p.set('to', to);
+      if (status) p.set('status', status);
+      if (type) p.set('type', type);
+      if (durationMin) p.set('durationMin', durationMin);
+      if (durationMax) p.set('durationMax', durationMax);
+      if (phone) p.set('phone', phone);
+      return p;
+    }
+
+    async function loadCalls() {
+      const params = buildCallsParams();
+      const res = await fetch('/api/calls?' + params);
+      const calls = await res.json();
+      renderCalls(calls);
+      if (document.getElementById('tab-dashboard').classList.contains('active')) {
+        loadStats();
+      }
+    }
+
+    function renderCalls(calls) {
+      const tbody = document.getElementById('callsTableBody');
       if (!calls.length) {
-        empty.textContent = 'No calls yet. Make a call or run npm run demo:seed';
-        empty.classList.remove('hidden');
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">No calls yet. Make a call or run npm run demo:seed</td></tr>';
         return;
       }
+      tbody.innerHTML = calls.map(c => {
+        const contact = [c.callerName, c.callerPhone].filter(Boolean).join(' · ') || '—';
+        const playBtn = c.recordingUrl
+          ? `<button class="btn-play" data-url="${c.recordingUrl}">▶ Play</button>`
+          : '<span class="no-recording">No recording</span>';
+        return `
+          <tr class="call-row" data-id="${c.callId}">
+            <td>${formatTime(c.timestamp)}</td>
+            <td><span class="badge type-${c.callType || 'inbound'}">${c.callType || 'inbound'}</span></td>
+            <td><span class="badge ${c.leadTemperature}" style="--temp-color:${tempColors[c.leadTemperature] || '#6b7280'}">${c.leadTemperature || '—'}</span></td>
+            <td>${formatDuration(c.duration)}</td>
+            <td>${contact}</td>
+            <td>
+              ${playBtn}
+              <button class="btn-expand" data-id="${c.callId}">Details</button>
+            </td>
+          </tr>
+          <tr class="call-details-row" id="row-details-${c.callId}" style="display:none">
+            <td colspan="6">
+              <div class="call-expanded">
+                <div class="detail-row"><strong>Reason:</strong> ${c.classificationReason || '—'}</div>
+                ${c.summary ? `<div class="detail-row"><strong>Summary:</strong> ${c.summary}</div>` : ''}
+                ${c.crmId ? `<div class="detail-row"><strong>CRM:</strong> ${c.crmProvider || 'amo'} #${c.crmId}</div>` : ''}
+                <div class="transcript">${transcriptToHtml(c.transcript)}</div>
+              </div>
+            </td>
+          </tr>
+        `;
+      }).join('');
 
-      empty.classList.add('hidden');
-      el.innerHTML = calls.map(c => `
-        <div class="call-card" data-id="${c.callId}">
-          <div class="call-header" onclick="toggleExpand('${c.callId}')">
-            <span class="call-id">${c.callId}</span>
-            <span class="call-phone">${c.callerPhone || '—'}</span>
-            <span class="call-duration">${formatDuration(c.duration)}</span>
-            <span class="call-temp badge ${c.leadTemperature}" style="--temp-color:${tempColors[c.leadTemperature] || '#6b7280'}">${c.leadTemperature}</span>
-            <span class="call-time">${formatTime(c.timestamp)}</span>
-          </div>
-          <div class="call-details" id="details-${c.callId}">
-            <div class="detail-row"><strong>Reason:</strong> ${c.classificationReason || '—'}</div>
-            ${c.summary ? `<div class="detail-row"><strong>Summary:</strong> ${c.summary}</div>` : ''}
-            ${c.crmId ? `<div class="detail-row"><strong>CRM:</strong> ${c.crmProvider || 'amo'} #${c.crmId}</div>` : ''}
-            <div class="transcript">${transcriptToHtml(c.transcript)}</div>
-          </div>
-        </div>
-      `).join('');
+      tbody.querySelectorAll('.btn-play').forEach(btn => {
+        btn.addEventListener('click', () => showPlayback(btn.dataset.url));
+      });
+      tbody.querySelectorAll('.btn-expand').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.id;
+          const row = document.getElementById(`row-details-${id}`);
+          if (row) row.style.display = row.style.display === 'none' ? '' : 'none';
+        });
+      });
     }
 
-    function toggleExpand(id) {
-      const el = document.getElementById(`details-${id}`);
-      if (el) el.classList.toggle('expanded');
+    function showPlayback(url) {
+      const modal = document.getElementById('playbackModal');
+      const area = document.getElementById('playbackArea');
+      area.innerHTML = `<audio src="${url}" controls></audio>`;
+      modal.classList.add('open');
     }
 
+    document.querySelector('.modal-close').addEventListener('click', () => {
+      document.getElementById('playbackModal').classList.remove('open');
+    });
+    document.getElementById('playbackModal').addEventListener('click', (e) => {
+      if (e.target.id === 'playbackModal') e.target.classList.remove('open');
+    });
+
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(`tab-${tab.dataset.tab}`).classList.add('active');
+        if (tab.dataset.tab === 'dashboard') loadStats();
+        if (tab.dataset.tab === 'calls') loadCalls();
+      });
+    });
+
+    document.getElementById('applyFilters').addEventListener('click', () => {
+      loadCalls();
+      loadStats();
+    });
+
+    document.getElementById('outboundForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const form = e.target;
+      const btn = form.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      try {
+        const res = await fetch('/api/calls/outbound', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            phoneNumber: form.phoneNumber.value.trim(),
+            customerName: form.customerName.value.trim() || undefined,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to start call');
+        alert(`Call started: ${data.callId || 'OK'}`);
+        form.reset();
+        loadCalls();
+        loadStats();
+      } catch (err) {
+        alert(err.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    loadStats();
     loadCalls();
-    setInterval(loadCalls, 10000);
+    setInterval(() => { loadStats(); loadCalls(); }, 10000);
   </script>
 </body>
 </html>

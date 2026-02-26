@@ -75,19 +75,22 @@ async function amoRequest(method, path, body) {
  * Creates a lead in Amo CRM with the given temperature (cold/warm/hot).
  * @param {Object} params
  * @param {string} params.phone - Caller phone number
- * @param {string} [params.name] - Contact/lead name
+ * @param {string} [params.name] - Contact/lead name (callerName)
  * @param {'cold'|'warm'|'hot'} params.temperature - Lead temperature
+ * @param {number} [params.duration] - Call duration in seconds
+ * @param {string} [params.recordingUrl] - Recording URL
+ * @param {string} [params.summary] - Call summary
  * @param {Object} [params.customFields] - Additional custom fields
  * @returns {Promise<{leadId: number}>}
  */
-export async function createLead({ phone, name, temperature, customFields = {} }) {
+export async function createLead({ phone, name, temperature, duration, recordingUrl, summary, customFields = {} }) {
   const pipelineId = process.env.AMO_PIPELINE_ID;
   const statusId = STATUS_MAP[temperature] || STATUS_MAP.cold;
 
   if (!pipelineId) throw new Error('AMO_PIPELINE_ID is required');
   if (!statusId) throw new Error(`AMO_STATUS_${temperature.toUpperCase()} is required`);
 
-  const leadName = name || `Call from ${phone}`;
+  const leadName = name ? `${name} (${phone})` : `Call from ${phone}`;
 
   const payload = {
     name: leadName,
@@ -100,6 +103,21 @@ export async function createLead({ phone, name, temperature, customFields = {} }
   const data = await amoRequest('POST', '/api/v4/leads', [payload]);
   const leadId = data._embedded?.leads?.[0]?.id;
   if (!leadId) throw new Error('Failed to create lead: no ID returned');
+
+  // Add note with duration, recording URL, summary if available
+  const noteParts = [];
+  if (typeof duration === 'number' && duration >= 0) noteParts.push(`Duration: ${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')}`);
+  if (recordingUrl) noteParts.push(`Recording: ${recordingUrl}`);
+  if (summary) noteParts.push(`Summary: ${summary}`);
+  if (noteParts.length > 0) {
+    try {
+      await amoRequest('POST', '/api/v4/leads/notes', [
+        { entity_id: leadId, note_type: 'common', params: { text: noteParts.join('\n') } },
+      ]);
+    } catch (err) {
+      console.warn('Amo CRM: Could not add note to lead:', err.message);
+    }
+  }
 
   return { leadId };
 }

@@ -4,7 +4,7 @@ import { VapiClient } from '@vapi-ai/server-sdk';
 import { classifyLead } from './services/classifier.js';
 import { createLead } from './services/amo-client.js';
 import { createDeal } from './services/bitrix-client.js';
-import { saveCall, updateCall, listCalls } from './services/storage.js';
+import { saveCall, updateCall, listCalls, getStats } from './services/storage.js';
 import { createStoredCall } from './schemas/call.js';
 
 const app = express();
@@ -52,10 +52,19 @@ app.post('/webhook/vapi', async (req, res) => {
     call.phoneNumberId ||
     call.customer?.phoneNumber ||
     '';
+  const callerName =
+    call.customer?.name || call.from?.name || call.customer?.firstName || '';
   const duration =
     typeof call.duration === 'number'
       ? call.duration
       : parseInt(call.duration, 10) || 0;
+  const callType =
+    call.direction === 'outbound' || call.type === 'outbound' ? 'outbound' : 'inbound';
+  const recordingUrl =
+    call.artifact?.recording?.url ||
+    call.artifact?.recording?.mono?.url ||
+    call.recordingUrl ||
+    null;
 
   let transcript = transcriptToText(call.artifact);
 
@@ -78,8 +87,11 @@ app.post('/webhook/vapi', async (req, res) => {
     const storedCall = createStoredCall({
       callId: callId || `unknown-${Date.now()}`,
       timestamp: new Date().toISOString(),
+      callType,
       callerPhone: from,
+      callerName: callerName || null,
       duration: typeof duration === 'number' ? duration : parseInt(duration, 10) || 0,
+      recordingUrl,
       transcript: transcriptForStorage,
       summary,
       leadTemperature: temperature,
@@ -101,7 +113,11 @@ app.post('/webhook/vapi', async (req, res) => {
         try {
           const { leadId } = await createLead({
             phone: from || 'unknown',
+            name: callerName || undefined,
             temperature,
+            duration: storedCall.duration,
+            recordingUrl: storedCall.recordingUrl,
+            summary,
             customFields: {},
           });
           storedCall.crmId = String(leadId);
@@ -116,8 +132,11 @@ app.post('/webhook/vapi', async (req, res) => {
         try {
           const { dealId } = await createDeal({
             phone: from || 'unknown',
+            name: callerName || undefined,
             temperature,
             summary,
+            duration: storedCall.duration,
+            recordingUrl: storedCall.recordingUrl,
           });
           storedCall.crmId = String(dealId);
           storedCall.crmProvider = 'bitrix';
@@ -150,12 +169,75 @@ app.get('/api/config', (req, res) => {
 
 app.get('/api/calls', async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit, 10) || 20;
-    const calls = await listCalls(limit);
+    const opts = {
+      from: req.query.from || undefined,
+      to: req.query.to || undefined,
+      status: req.query.status || undefined,
+      type: req.query.type || undefined,
+      durationMin: req.query.durationMin != null ? parseInt(req.query.durationMin, 10) : undefined,
+      durationMax: req.query.durationMax != null ? parseInt(req.query.durationMax, 10) : undefined,
+      phone: req.query.phone || undefined,
+      limit: parseInt(req.query.limit, 10) || 20,
+      offset: parseInt(req.query.offset, 10) || 0,
+    };
+    const calls = await listCalls(opts);
     res.json(calls);
   } catch (err) {
     console.error('List calls error:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/stats', async (req, res) => {
+  try {
+    const opts = {
+      from: req.query.from || undefined,
+      to: req.query.to || undefined,
+    };
+    const stats = await getStats(opts);
+    res.json(stats);
+  } catch (err) {
+    console.error('Stats error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+/**
+ * Start an outbound call via VAPI.
+ * Body: { phoneNumber, customerName?, assistantId? }
+ * Requires VAPI_API_KEY, VAPI_PHONE_NUMBER_ID; uses VAPI_ASSISTANT_ID if assistantId not provided.
+ */
+app.post('/api/calls/outbound', async (req, res) => {
+  if (!vapi) {
+    return res.status(503).json({ error: 'VAPI not configured. Set VAPI_API_KEY.' });
+  }
+  const phoneNumberId = process.env.VAPI_PHONE_NUMBER_ID;
+  const assistantId = req.body?.assistantId || process.env.VAPI_ASSISTANT_ID;
+  if (!phoneNumberId || !assistantId) {
+    return res.status(400).json({
+      error: 'Missing config. Set VAPI_PHONE_NUMBER_ID and VAPI_ASSISTANT_ID (or pass assistantId in body).',
+    });
+  }
+  const phoneNumber = req.body?.phoneNumber?.trim();
+  if (!phoneNumber) {
+    return res.status(400).json({ error: 'phoneNumber is required' });
+  }
+  const customer = { number: phoneNumber };
+  if (req.body?.customerName?.trim()) {
+    customer.name = req.body.customerName.trim();
+  }
+  try {
+    const result = await vapi.calls.create({
+      assistantId,
+      phoneNumberId,
+      customer,
+    });
+    const callId = result?.id ?? result?.callId ?? null;
+    const status = result?.status ?? 'started';
+    res.status(201).json({ callId, status });
+  } catch (err) {
+    console.error('Outbound call error:', err);
+    res.status(500).json({ error: err.message || 'Failed to start outbound call' });
   }
 });
 

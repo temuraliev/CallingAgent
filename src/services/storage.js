@@ -53,28 +53,108 @@ export async function updateCall(callId, updates, dateStr) {
 }
 
 /**
- * Lists recent calls, most recent first.
- * @param {number} [limit=20] - Max number of calls to return
+ * Loads all calls from storage, optionally limited by date range.
+ * @param {string} [from] - Start date YYYY-MM-DD
+ * @param {string} [to] - End date YYYY-MM-DD
  * @returns {Promise<Object[]>}
  */
-export async function listCalls(limit = 20) {
+async function loadAllCalls(from, to) {
   const calls = [];
   try {
     const dateDirs = await fs.readdir(CALLS_DIR);
-    const sorted = dateDirs.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().reverse();
+    let sorted = dateDirs.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().reverse();
+    if (from) sorted = sorted.filter((d) => d >= from);
+    if (to) sorted = sorted.filter((d) => d <= to);
     for (const dateStr of sorted) {
       const dir = path.join(CALLS_DIR, dateStr);
       const files = await fs.readdir(dir);
       for (const f of files.filter((f) => f.endsWith('.json'))) {
         const content = await fs.readFile(path.join(dir, f), 'utf-8');
         calls.push(JSON.parse(content));
-        if (calls.length >= limit) break;
       }
-      if (calls.length >= limit) break;
     }
-    return calls.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)).slice(0, limit);
+    return calls.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
   } catch (err) {
     if (err.code === 'ENOENT') return [];
     throw err;
   }
+}
+
+/**
+ * Lists calls with filters and pagination.
+ * @param {Object} [opts] - Filter options
+ * @param {string} [opts.from] - Start date YYYY-MM-DD
+ * @param {string} [opts.to] - End date YYYY-MM-DD
+ * @param {string} [opts.status] - hot | warm | cold
+ * @param {string} [opts.type] - inbound | outbound
+ * @param {number} [opts.durationMin] - Min duration in seconds
+ * @param {number} [opts.durationMax] - Max duration in seconds
+ * @param {string} [opts.phone] - Search by phone (substring)
+ * @param {number} [opts.limit=20] - Max calls to return
+ * @param {number} [opts.offset=0] - Skip N calls
+ * @returns {Promise<Object[]>}
+ */
+export async function listCalls(opts = {}) {
+  const limit = typeof opts === 'number' ? opts : (opts.limit ?? 20);
+  const offset = opts.offset ?? 0;
+  const from = opts.from;
+  const to = opts.to;
+  const status = opts.status;
+  const type = opts.type;
+  const durationMin = opts.durationMin;
+  const durationMax = opts.durationMax;
+  const phone = opts.phone?.trim();
+
+  let calls = await loadAllCalls(from, to);
+
+  if (status) {
+    const s = status.toLowerCase();
+    calls = calls.filter((c) => (c.leadTemperature || '').toLowerCase() === s);
+  }
+  if (type) {
+    const t = type.toLowerCase();
+    calls = calls.filter((c) => (c.callType || 'inbound').toLowerCase() === t);
+  }
+  if (typeof durationMin === 'number' && durationMin >= 0) {
+    calls = calls.filter((c) => (c.duration ?? 0) >= durationMin);
+  }
+  if (typeof durationMax === 'number' && durationMax >= 0) {
+    calls = calls.filter((c) => (c.duration ?? 0) <= durationMax);
+  }
+  if (phone) {
+    const p = phone.replace(/\D/g, '');
+    calls = calls.filter((c) => {
+      const num = (c.callerPhone || '').replace(/\D/g, '');
+      return num.includes(p) || (c.callerName || '').toLowerCase().includes(phone.toLowerCase());
+    });
+  }
+
+  return calls.slice(offset, offset + limit);
+}
+
+/**
+ * Returns aggregate stats for dashboard.
+ * @param {Object} [opts] - Optional filters (from, to)
+ * @returns {Promise<{ totalCalls: number, totalDurationSeconds: number, hotCount: number, warmCount: number, coldCount: number }>}
+ */
+export async function getStats(opts = {}) {
+  const calls = await loadAllCalls(opts.from, opts.to);
+  let totalDurationSeconds = 0;
+  let hotCount = 0;
+  let warmCount = 0;
+  let coldCount = 0;
+  for (const c of calls) {
+    totalDurationSeconds += c.duration ?? 0;
+    const t = (c.leadTemperature || 'cold').toLowerCase();
+    if (t === 'hot') hotCount++;
+    else if (t === 'warm') warmCount++;
+    else coldCount++;
+  }
+  return {
+    totalCalls: calls.length,
+    totalDurationSeconds,
+    hotCount,
+    warmCount,
+    coldCount,
+  };
 }

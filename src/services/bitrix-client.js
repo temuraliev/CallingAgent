@@ -62,13 +62,15 @@ async function createContact(phone, name = 'Unknown') {
  * Creates a deal in Bitrix24 with the given temperature (cold/warm/hot).
  * @param {Object} params
  * @param {string} params.phone - Caller phone number
- * @param {string} [params.name] - Contact/lead name
+ * @param {string} [params.name] - Contact/lead name (callerName)
  * @param {'cold'|'warm'|'hot'} params.temperature - Lead temperature
  * @param {string} [params.summary] - Call summary for comments
+ * @param {number} [params.duration] - Call duration in seconds
+ * @param {string} [params.recordingUrl] - Recording URL
  * @param {Object} [params.customFields] - Additional custom fields
  * @returns {Promise<{dealId: number}>}
  */
-export async function createDeal({ phone, name, temperature, summary = '', customFields = {} }) {
+export async function createDeal({ phone, name, temperature, summary = '', duration, recordingUrl, customFields = {} }) {
   const categoryId = process.env.BITRIX24_CATEGORY_ID || '0';
   const stageId = STAGE_MAP[temperature] || STAGE_MAP.cold;
 
@@ -84,13 +86,20 @@ export async function createDeal({ phone, name, temperature, summary = '', custo
     console.warn('Bitrix24: Could not create contact, deal will be created without contact:', err.message);
   }
 
+  const commentParts = [];
+  if (summary) commentParts.push(`[B]Call summary:[/B]\n${summary}`);
+  if (typeof duration === 'number' && duration >= 0) {
+    commentParts.push(`[B]Duration:[/B] ${Math.floor(duration / 60)}:${(duration % 60).toString().padStart(2, '0')}`);
+  }
+  if (recordingUrl) commentParts.push(`[B]Recording:[/B] ${recordingUrl}`);
+
   const fields = {
     TITLE: title,
     CATEGORY_ID: parseInt(categoryId, 10),
     STAGE_ID: stageId,
     SOURCE_ID: 'CALL',
     SOURCE_DESCRIPTION: 'AI voice agent',
-    COMMENTS: summary ? `[B]Call summary:[/B]\n${summary}` : '',
+    COMMENTS: commentParts.join('\n\n'),
     CONTACT_IDS: contactIds,
     OPPORTUNITY: 0,
     ...customFields,
