@@ -79,11 +79,22 @@ app.post('/webhook/vapi', async (req, res) => {
 
   let transcript = transcriptToText(call.artifact);
 
-  // Fetch full call details from VAPI if transcript is empty
-  if (!transcript && vapi && callId) {
+  // Fetch full call from VAPI API when we need transcript or duration (webhook payload often lacks timestamps)
+  if (vapi && callId && (!transcript || duration === 0)) {
     try {
       const fullCall = await vapi.calls.get(callId);
-      transcript = transcriptToText(fullCall.artifact);
+      if (!transcript) transcript = transcriptToText(fullCall.artifact);
+      if (duration === 0 && (fullCall.startedAt || fullCall.endedAt)) {
+        const started = fullCall.startedAt ? new Date(fullCall.startedAt).getTime() : null;
+        const ended = fullCall.endedAt ? new Date(fullCall.endedAt).getTime() : null;
+        if (started && ended && ended > started) {
+          duration = Math.round((ended - started) / 1000);
+        } else if (fullCall.createdAt && fullCall.updatedAt) {
+          const created = new Date(fullCall.createdAt).getTime();
+          const updated = new Date(fullCall.updatedAt).getTime();
+          duration = Math.max(0, Math.round((updated - created) / 1000));
+        }
+      }
     } catch (err) {
       console.error('Failed to fetch call from VAPI:', err.message);
     }
