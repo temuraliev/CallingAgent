@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Live Call – Calling Agent</title>
+  <title>Звонок – Calling Agent</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,20 +12,20 @@
   <div class="call-page">
     <a href="/" class="back">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
-      Back to Dashboard
+      Назад к панели
     </a>
     <div class="logo-icon" style="margin:0 auto 1.5rem;width:56px;height:56px;border-radius:16px;">
       <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
       </svg>
     </div>
-    <h1>Live Call</h1>
-    <p class="subtitle">Start a voice call from your browser. No phone needed.</p>
+    <h1>Голосовой звонок</h1>
+    <p class="subtitle">Начните звонок из браузера. Телефон не нужен.</p>
     <div id="setupMsg" class="setup-msg hidden">
-      Add <code>VAPI_PUBLIC_API_KEY</code> and <code>VAPI_ASSISTANT_ID</code> to your .env and Railway variables.
-      Get them from <a href="https://dashboard.vapi.ai" target="_blank" rel="noopener">VAPI Dashboard</a>.
+      Добавьте <code>VAPI_PUBLIC_API_KEY</code> и <code>VAPI_ASSISTANT_ID</code> в .env и переменные Railway.
+      Получить их можно в <a href="https://dashboard.vapi.ai" target="_blank" rel="noopener">VAPI Dashboard</a>.
     </div>
-    <p id="readyMsg">The call widget will appear below. Allow microphone access when prompted.</p>
+    <p id="readyMsg">Виджет звонка появится ниже. Разрешите доступ к микрофону.</p>
   </div>
 
   <script>

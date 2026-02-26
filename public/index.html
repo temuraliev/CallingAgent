@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Calling Agent – Dashboard</title>
+  <title>Calling Agent – Панель управления</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -22,21 +22,21 @@
       <nav class="sidebar-nav">
         <button class="nav-item active" data-tab="dashboard">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
-          Dashboard
+          Панель
         </button>
         <button class="nav-item" data-tab="calls">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
-          Calls
+          Звонки
         </button>
         <a href="/call.html" class="nav-item nav-link">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
-          Live Call
+          Позвонить
         </a>
       </nav>
       <div class="sidebar-footer">
         <a href="/health" class="nav-item nav-link">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
-          Health
+          Статус
         </a>
       </div>
     </aside>
@@ -44,16 +44,16 @@
     <main class="content">
       <header class="topbar">
         <div class="topbar-left">
-          <h1 class="page-title" id="pageTitle">Dashboard</h1>
-          <span class="page-subtitle">AI voice calls &middot; Lead classification</span>
+          <h1 class="page-title" id="pageTitle">Панель управления</h1>
+          <span class="page-subtitle">AI-звонки &middot; Классификация лидов</span>
         </div>
         <div class="topbar-right">
           <form id="outboundForm" class="outbound-form">
-            <input type="tel" name="phoneNumber" placeholder="+1 234 567 8900" required>
-            <input type="text" name="customerName" placeholder="Name">
+            <input type="tel" name="phoneNumber" placeholder="+998 90 123 45 67" required>
+            <input type="text" name="customerName" placeholder="Имя">
             <button type="submit" class="btn btn-primary">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/></svg>
-              Call
+              Позвонить
             </button>
           </form>
         </div>
@@ -67,7 +67,7 @@
             </div>
             <div class="stat-info">
               <span class="stat-value" id="totalCalls">0</span>
-              <span class="stat-label">Total Calls</span>
+              <span class="stat-label">Всего звонков</span>
             </div>
           </div>
           <div class="stat-card">
@@ -76,7 +76,7 @@
             </div>
             <div class="stat-info">
               <span class="stat-value" id="totalDuration">0:00</span>
-              <span class="stat-label">Total Duration</span>
+              <span class="stat-label">Общее время</span>
             </div>
           </div>
           <div class="stat-card">
@@ -85,7 +85,7 @@
             </div>
             <div class="stat-info">
               <span class="stat-value" id="hotCount">0</span>
-              <span class="stat-label">Hot Leads</span>
+              <span class="stat-label">Горячие</span>
             </div>
           </div>
           <div class="stat-card">
@@ -94,7 +94,7 @@
             </div>
             <div class="stat-info">
               <span class="stat-value" id="warmCount">0</span>
-              <span class="stat-label">Warm Leads</span>
+              <span class="stat-label">Тёплые</span>
             </div>
           </div>
           <div class="stat-card">
@@ -103,27 +103,27 @@
             </div>
             <div class="stat-info">
               <span class="stat-value" id="coldCount">0</span>
-              <span class="stat-label">Cold Leads</span>
+              <span class="stat-label">Холодные</span>
             </div>
           </div>
         </div>
 
         <div class="recent-section">
-          <h2 class="section-title">Recent Calls</h2>
+          <h2 class="section-title">Последние звонки</h2>
           <div class="calls-table-wrap">
             <table class="calls-table">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Type</th>
-                  <th>Lead</th>
-                  <th>Duration</th>
-                  <th>Contact</th>
-                  <th>Actions</th>
+                  <th>Дата</th>
+                  <th>Тип</th>
+                  <th>Лид</th>
+                  <th>Длит.</th>
+                  <th>Контакт</th>
+                  <th>Действия</th>
                 </tr>
               </thead>
               <tbody id="dashboardTableBody">
-                <tr><td colspan="6" class="empty">Loading...</td></tr>
+                <tr><td colspan="6" class="empty">Загрузка...</td></tr>
               </tbody>
             </table>
           </div>
@@ -133,50 +133,50 @@
       <section id="tab-calls" class="tab-panel">
         <div class="filters-bar">
           <div class="filter-group">
-            <label>From</label>
+            <label>От</label>
             <input type="date" id="filterFrom">
           </div>
           <div class="filter-group">
-            <label>To</label>
+            <label>До</label>
             <input type="date" id="filterTo">
           </div>
           <div class="filter-group">
-            <label>Status</label>
+            <label>Статус</label>
             <select id="filterStatus">
-              <option value="">All</option>
-              <option value="hot">Hot</option>
-              <option value="warm">Warm</option>
-              <option value="cold">Cold</option>
+              <option value="">Все</option>
+              <option value="hot">Горячий</option>
+              <option value="warm">Тёплый</option>
+              <option value="cold">Холодный</option>
             </select>
           </div>
           <div class="filter-group">
-            <label>Type</label>
+            <label>Тип</label>
             <select id="filterType">
-              <option value="">All</option>
-              <option value="inbound">Inbound</option>
-              <option value="outbound">Outbound</option>
+              <option value="">Все</option>
+              <option value="inbound">Входящий</option>
+              <option value="outbound">Исходящий</option>
             </select>
           </div>
           <div class="filter-group">
-            <label>Phone</label>
-            <input type="text" id="filterPhone" placeholder="Search...">
+            <label>Телефон</label>
+            <input type="text" id="filterPhone" placeholder="Поиск...">
           </div>
-          <button type="button" id="applyFilters" class="btn btn-secondary">Apply</button>
+          <button type="button" id="applyFilters" class="btn btn-secondary">Применить</button>
         </div>
         <div class="calls-table-wrap">
           <table class="calls-table">
             <thead>
               <tr>
-                <th>Date</th>
-                <th>Type</th>
-                <th>Lead</th>
-                <th>Duration</th>
-                <th>Contact</th>
-                <th>Actions</th>
+                <th>Дата</th>
+                <th>Тип</th>
+                <th>Лид</th>
+                <th>Длит.</th>
+                <th>Контакт</th>
+                <th>Действия</th>
               </tr>
             </thead>
             <tbody id="callsTableBody">
-              <tr><td colspan="6" class="empty">Loading...</td></tr>
+              <tr><td colspan="6" class="empty">Загрузка...</td></tr>
             </tbody>
           </table>
         </div>
@@ -188,7 +188,7 @@
     <div class="modal-backdrop"></div>
     <div class="modal-content">
       <div class="modal-header">
-        <h3>Call Recording</h3>
+        <h3>Запись звонка</h3>
         <button class="modal-close">&times;</button>
       </div>
       <div class="modal-body" id="playbackArea"></div>
@@ -199,7 +199,7 @@
     <div class="modal-backdrop"></div>
     <div class="modal-content modal-lg">
       <div class="modal-header">
-        <h3>Call Details</h3>
+        <h3>Детали звонка</h3>
         <button class="modal-close">&times;</button>
       </div>
       <div class="modal-body" id="detailArea"></div>
@@ -207,7 +207,8 @@
   </div>
 
   <script>
-    const tempColors = { hot: '#ef4444', warm: '#f59e0b', cold: '#6b7280' };
+    const tempLabels = { hot: 'горячий', warm: 'тёплый', cold: 'холодный' };
+    const typeLabels = { inbound: 'входящий', outbound: 'исходящий' };
 
     function formatDuration(sec) {
       if (!sec) return '0:00';
@@ -227,19 +228,21 @@
 
     function formatTime(iso) {
       const d = new Date(iso);
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ', ' + d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ', ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
     }
 
     function transcriptToHtml(transcript) {
-      if (!transcript || !Array.isArray(transcript) || !transcript.length) return '<p class="empty-text">No transcript available</p>';
+      if (!transcript || !Array.isArray(transcript) || !transcript.length) return '<p class="empty-text">Транскрипт отсутствует</p>';
       return transcript.map(t => {
         const role = t.role || 'unknown';
-        const msg = t.message || t.content || '';
+        const msg = t.message || t.content || t.text || '';
+        if (!msg) return '';
+        const roleLabel = role === 'assistant' ? 'Ассистент' : role === 'user' ? 'Клиент' : role;
         const icon = role === 'assistant'
           ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/></svg>'
           : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
-        return `<div class="transcript-msg ${role}"><span class="transcript-role">${icon} ${role}</span><span class="transcript-text">${msg}</span></div>`;
-      }).join('');
+        return `<div class="transcript-msg ${role}"><span class="transcript-role">${icon} ${roleLabel}</span><span class="transcript-text">${msg}</span></div>`;
+      }).filter(Boolean).join('');
     }
 
     let allCalls = [];
@@ -296,24 +299,26 @@
     function renderCalls(calls, tbodyId) {
       const tbody = document.getElementById(tbodyId);
       if (!calls.length) {
-        tbody.innerHTML = '<tr><td colspan="6" class="empty">No calls yet</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">Звонков пока нет</td></tr>';
         return;
       }
       tbody.innerHTML = calls.map(c => {
         const contact = [c.callerName, c.callerPhone].filter(Boolean).join(' · ') || '—';
+        const tempKey = c.leadTemperature || 'cold';
+        const typeKey = c.callType || 'inbound';
         const playBtn = c.recordingUrl
-          ? `<button class="btn btn-icon btn-play" data-url="${c.recordingUrl}" title="Play recording"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>`
+          ? `<button class="btn btn-icon btn-play" data-url="${c.recordingUrl}" title="Воспроизвести"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg></button>`
           : '';
         return `
           <tr class="call-row">
             <td><span class="cell-date">${formatTime(c.timestamp)}</span></td>
-            <td><span class="badge type-${c.callType || 'inbound'}">${c.callType || 'inbound'}</span></td>
-            <td><span class="badge temp-${c.leadTemperature || 'cold'}">${c.leadTemperature || 'cold'}</span></td>
+            <td><span class="badge type-${typeKey}">${typeLabels[typeKey] || typeKey}</span></td>
+            <td><span class="badge temp-${tempKey}">${tempLabels[tempKey] || tempKey}</span></td>
             <td><span class="cell-duration">${formatDuration(c.duration)}</span></td>
             <td><span class="cell-contact">${contact}</span></td>
             <td class="cell-actions">
               ${playBtn}
-              <button class="btn btn-icon btn-details" data-id="${c.callId}" title="View details">
+              <button class="btn btn-icon btn-details" data-id="${c.callId}" title="Подробнее">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
               </button>
             </td>
@@ -338,20 +343,22 @@
       const c = allCalls.find(x => x.callId === callId);
       if (!c) return;
       const area = document.getElementById('detailArea');
+      const tempKey = c.leadTemperature || 'cold';
+      const typeKey = c.callType || 'inbound';
       area.innerHTML = `
         <div class="detail-grid">
-          <div class="detail-item"><span class="detail-label">Status</span><span class="badge temp-${c.leadTemperature}">${c.leadTemperature}</span></div>
-          <div class="detail-item"><span class="detail-label">Type</span><span class="badge type-${c.callType}">${c.callType}</span></div>
-          <div class="detail-item"><span class="detail-label">Duration</span><span>${formatDuration(c.duration)}</span></div>
-          <div class="detail-item"><span class="detail-label">Phone</span><span>${c.callerPhone || '—'}</span></div>
-          ${c.callerName ? `<div class="detail-item"><span class="detail-label">Name</span><span>${c.callerName}</span></div>` : ''}
+          <div class="detail-item"><span class="detail-label">Статус</span><span class="badge temp-${tempKey}">${tempLabels[tempKey] || tempKey}</span></div>
+          <div class="detail-item"><span class="detail-label">Тип</span><span class="badge type-${typeKey}">${typeLabels[typeKey] || typeKey}</span></div>
+          <div class="detail-item"><span class="detail-label">Длительность</span><span>${formatDuration(c.duration)}</span></div>
+          <div class="detail-item"><span class="detail-label">Телефон</span><span>${c.callerPhone || '—'}</span></div>
+          ${c.callerName ? `<div class="detail-item"><span class="detail-label">Имя</span><span>${c.callerName}</span></div>` : ''}
           ${c.crmId ? `<div class="detail-item"><span class="detail-label">CRM</span><span>${c.crmProvider || 'amo'} #${c.crmId}</span></div>` : ''}
         </div>
-        ${c.classificationReason ? `<div class="detail-section"><h4>Classification Reason</h4><p>${c.classificationReason}</p></div>` : ''}
-        ${c.summary ? `<div class="detail-section"><h4>Summary</h4><p>${c.summary}</p></div>` : ''}
-        ${Array.isArray(c.interestedActivities) && c.interestedActivities.length ? `<div class="detail-section"><h4>Interests</h4><div class="tags">${c.interestedActivities.map(a => `<span class="tag">${a}</span>`).join('')}</div></div>` : ''}
-        ${c.recordingUrl ? `<div class="detail-section"><h4>Recording</h4><audio src="${c.recordingUrl}" controls style="width:100%"></audio></div>` : ''}
-        <div class="detail-section"><h4>Transcript</h4><div class="transcript-box">${transcriptToHtml(c.transcript)}</div></div>
+        ${c.classificationReason ? `<div class="detail-section"><h4>Причина классификации</h4><p>${c.classificationReason}</p></div>` : ''}
+        ${c.summary ? `<div class="detail-section"><h4>Резюме</h4><p>${c.summary}</p></div>` : ''}
+        ${Array.isArray(c.interestedActivities) && c.interestedActivities.length ? `<div class="detail-section"><h4>Интересы</h4><div class="tags">${c.interestedActivities.map(a => `<span class="tag">${a}</span>`).join('')}</div></div>` : ''}
+        ${c.recordingUrl ? `<div class="detail-section"><h4>Запись</h4><audio src="${c.recordingUrl}" controls style="width:100%"></audio></div>` : ''}
+        <div class="detail-section"><h4>Транскрипт</h4><div class="transcript-box">${transcriptToHtml(c.transcript)}</div></div>
       `;
       openModal('detailModal');
     }
@@ -382,7 +389,7 @@
         item.classList.add('active');
         const tab = item.dataset.tab;
         document.getElementById(`tab-${tab}`).classList.add('active');
-        document.getElementById('pageTitle').textContent = tab === 'dashboard' ? 'Dashboard' : 'Calls';
+        document.getElementById('pageTitle').textContent = tab === 'dashboard' ? 'Панель управления' : 'Звонки';
         if (tab === 'calls') loadCalls();
       });
     });
@@ -405,8 +412,8 @@
           }),
         });
         const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Failed');
-        showToast(`Call started: ${data.callId || 'OK'}`, 'success');
+        if (!res.ok) throw new Error(data.error || 'Ошибка');
+        showToast(`Звонок запущен: ${data.callId || 'OK'}`, 'success');
         form.reset();
         setTimeout(loadCalls, 3000);
       } catch (err) {

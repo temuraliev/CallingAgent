@@ -94,39 +94,45 @@ app.post('/webhook/vapi', async (req, res) => {
 
   // Fetch full call from VAPI API to fill in missing data (transcript, duration)
   if (vapi && isValidUuid && (!transcript || duration === 0 || transcriptForStorage.length === 0)) {
-    try {
-      const fullCall = await vapi.calls.get(callId);
-      console.log('[VAPI API DEBUG] fullCall keys:', Object.keys(fullCall).join(', '),
-        '| startedAt:', fullCall.startedAt, '| endedAt:', fullCall.endedAt,
-        '| duration:', fullCall.duration,
-        '| artifact messages count:', fullCall.artifact?.messages?.length || 0);
+    // VAPI may not have processed the call data yet; retry with delay
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        if (attempt > 0) await new Promise(r => setTimeout(r, 3000));
+        const fullCall = await vapi.calls.get(callId);
+        console.log(`[VAPI API attempt ${attempt + 1}] keys:`, Object.keys(fullCall).join(', '),
+          '| startedAt:', fullCall.startedAt, '| endedAt:', fullCall.endedAt,
+          '| msgs:', fullCall.artifact?.messages?.length || 0);
 
-      if (!transcript) transcript = transcriptToText(fullCall.artifact);
+        if (!transcript) transcript = transcriptToText(fullCall.artifact);
 
-      if (transcriptForStorage.length === 0) {
-        transcriptForStorage = fullCall.artifact?.messages || fullCall.artifact?.transcript || [];
-      }
+        if (transcriptForStorage.length === 0) {
+          transcriptForStorage = fullCall.artifact?.messages || fullCall.artifact?.transcript || [];
+        }
 
-      if (duration === 0) {
-        if (typeof fullCall.duration === 'number' && fullCall.duration >= 0) {
-          duration = fullCall.duration;
-        } else {
-          const started = fullCall.startedAt ? new Date(fullCall.startedAt).getTime() : null;
-          const ended = fullCall.endedAt ? new Date(fullCall.endedAt).getTime() : null;
-          if (started && ended && ended > started) {
-            duration = Math.round((ended - started) / 1000);
-          } else if (fullCall.createdAt && fullCall.updatedAt) {
-            const created = new Date(fullCall.createdAt).getTime();
-            const updated = new Date(fullCall.updatedAt).getTime();
-            duration = Math.max(0, Math.round((updated - created) / 1000));
+        if (duration === 0) {
+          if (typeof fullCall.duration === 'number' && fullCall.duration >= 0) {
+            duration = fullCall.duration;
+          } else {
+            const started = fullCall.startedAt ? new Date(fullCall.startedAt).getTime() : null;
+            const ended = fullCall.endedAt ? new Date(fullCall.endedAt).getTime() : null;
+            if (started && ended && ended > started) {
+              duration = Math.round((ended - started) / 1000);
+            } else if (fullCall.createdAt && fullCall.updatedAt) {
+              const created = new Date(fullCall.createdAt).getTime();
+              const updated = new Date(fullCall.updatedAt).getTime();
+              duration = Math.max(0, Math.round((updated - created) / 1000));
+            }
           }
         }
+
+        if (transcript && transcriptForStorage.length > 0 && duration > 0) break;
+      } catch (err) {
+        console.error(`Failed to fetch call from VAPI (attempt ${attempt + 1}):`, err.message);
+        break;
       }
-    } catch (err) {
-      console.error('Failed to fetch call from VAPI:', err.message);
     }
   }
-  console.log('[DURATION RESULT] callId:', callId, '| duration:', duration, 'sec | transcript msgs:', transcriptForStorage.length);
+  console.log('[RESULT] callId:', callId, '| duration:', duration, 'sec | transcript msgs:', transcriptForStorage.length);
 
   let temperature = 'cold';
   let reason = '';
