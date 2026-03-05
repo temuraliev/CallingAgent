@@ -31,7 +31,7 @@ const PORT = process.env.PORT || 3000;
 
 async function bootstrap() {
   try {
-    // await initQueue().catch(err => console.error('Warning: Queue init failed', err.message));
+    await initQueue().catch(err => console.error('Warning: Queue init failed', err.message));
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });

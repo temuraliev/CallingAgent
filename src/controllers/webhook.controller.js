@@ -57,8 +57,9 @@ export const handleVapiWebhook = async (req, res) => {
             console.log(`Bypassed queue, directly processed webhook for call ${callId}`);
         } else {
             const jobId = await boss.send('process-vapi-webhook', payload, {
-                retryLimit: 3,
-                retryDelay: 60, // 1 minute delay before retry
+                retryLimit: 10,
+                retryDelay: 60, // 1 minute initial delay
+                retryBackoff: true, // Exponential backoff
             });
             console.log(`Queued process-vapi-webhook job: ${jobId}`);
         }
@@ -86,7 +87,9 @@ export const handleLeadClassification = async (req, res) => {
 
     try {
         const jobId = await boss.send('process-lead-classification', { phone, updates }, {
-            retryLimit: 3,
+            retryLimit: 10,
+            retryDelay: 60,
+            retryBackoff: true,
         });
         console.log(`Queued process-lead-classification job: ${jobId}`);
     } catch (err) {

@@ -74,7 +74,8 @@ async function handleVapiJob(payload) {
                 if (transcript && transcriptForStorage.length > 0 && duration > 0) break;
             } catch (err) {
                 console.error(`VAPI fetch failed (attempt ${attempt + 1}):`, err.message);
-                break;
+                if (attempt === 2) throw err; // Throw to trigger pg-boss retry
+                continue;
             }
         }
     }
@@ -87,6 +88,10 @@ async function handleVapiJob(payload) {
         reason = classified.reason || '';
     } catch (err) {
         console.error('Lead classification failed:', err.message);
+        const msg = (err.message || '').toLowerCase();
+        if (msg.includes('429') || msg.includes('too many') || msg.includes('503') || msg.includes('fetch failed')) {
+            throw err; // Throw to trigger pg-boss retry for transient AI rate limits
+        }
     }
 
     let summaryRu = summary;
