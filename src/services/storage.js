@@ -1,6 +1,6 @@
 import { eq, desc, and, gte, lte, or, ilike, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { calls } from '../db/schema.js';
+import { calls, scripts } from '../db/schema.js';
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
@@ -8,10 +8,12 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '..', '..', 'data');
 const JSON_DB = join(DATA_DIR, 'calls.json');
+const JSON_SCRIPTS = join(DATA_DIR, 'scripts.json');
 
 function ensureDataDir() {
   if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
   if (!existsSync(JSON_DB)) writeFileSync(JSON_DB, JSON.stringify([]));
+  if (!existsSync(JSON_SCRIPTS)) writeFileSync(JSON_SCRIPTS, JSON.stringify([]));
 }
 
 async function getJsonCalls() {
@@ -22,6 +24,16 @@ async function getJsonCalls() {
 async function saveJsonCalls(data) {
   ensureDataDir();
   writeFileSync(JSON_DB, JSON.stringify(data, null, 2));
+}
+
+async function getJsonScripts() {
+  ensureDataDir();
+  return JSON.parse(readFileSync(JSON_SCRIPTS, 'utf-8'));
+}
+
+async function saveJsonScripts(data) {
+  ensureDataDir();
+  writeFileSync(JSON_SCRIPTS, JSON.stringify(data, null, 2));
 }
 
 export async function saveCall(callData) {
@@ -182,5 +194,68 @@ export async function getStats(opts = {}) {
       warmCount: jsonCalls.filter(c => c.leadTemperature === 'warm').length,
       coldCount: jsonCalls.filter(c => c.leadTemperature === 'cold').length,
     };
+  }
+}
+
+// ─── Script Storage ──────────────────────────────────────────────────────────
+
+export async function saveScript(scriptData) {
+  try {
+    const [saved] = await db.insert(scripts).values({
+      name: scriptData.name,
+      description: scriptData.description,
+      firstMessage: scriptData.firstMessage,
+      systemPrompt: scriptData.systemPrompt,
+      isActive: scriptData.isActive !== undefined ? scriptData.isActive : true,
+      updatedAt: new Date(),
+    }).returning();
+    return saved;
+  } catch (err) {
+    console.warn('DB Script Save failed, falling back to JSON:', err.message);
+    const jsonScripts = await getJsonScripts();
+    const newScript = {
+      id: Date.now(),
+      ...scriptData,
+      isActive: scriptData.isActive !== undefined ? scriptData.isActive : true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    jsonScripts.push(newScript);
+    await saveJsonScripts(jsonScripts);
+    return newScript;
+  }
+}
+
+export async function listScripts() {
+  try {
+    return await db.select().from(scripts).orderBy(desc(scripts.updatedAt));
+  } catch (err) {
+    console.warn('DB Script List failed, falling back to JSON:', err.message);
+    const jsonScripts = await getJsonScripts();
+    return jsonScripts.sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  }
+}
+
+export async function getScript(id) {
+  try {
+    const result = await db.select().from(scripts).where(eq(scripts.id, Number(id)));
+    return result[0] || null;
+  } catch (err) {
+    console.warn('DB Script Get failed, falling back to JSON:', err.message);
+    const jsonScripts = await getJsonScripts();
+    return jsonScripts.find(s => String(s.id) === String(id)) || null;
+  }
+}
+
+export async function deleteScript(id) {
+  try {
+    await db.delete(scripts).where(eq(scripts.id, Number(id)));
+    return true;
+  } catch (err) {
+    console.warn('DB Script Delete failed, falling back to JSON:', err.message);
+    const jsonScripts = await getJsonScripts();
+    const filtered = jsonScripts.filter(s => String(s.id) !== String(id));
+    await saveJsonScripts(filtered);
+    return true;
   }
 }

@@ -3,7 +3,7 @@ import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { loadSettings, saveSettings } from '../services/settings.js';
-import { listCalls, getStats } from '../services/storage.js';
+import { listCalls, getStats, getScript } from '../services/storage.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..', '..');
@@ -178,20 +178,34 @@ export const createOutboundCall = async (req, res) => {
     try {
         const vapi = new VapiClient({ token: vapiKey });
         const settings = await loadSettings();
+
+        let finalFirstMessage = req.body?.firstMessage || settings.firstMessage;
+        let finalSystemPrompt = req.body?.systemPrompt || settings.systemPrompt;
+
+        // If scriptId is provided, it overrides settings
+        if (req.body?.scriptId) {
+            const script = await getScript(req.body.scriptId);
+            if (script) {
+                if (script.firstMessage) finalFirstMessage = script.firstMessage;
+                if (script.systemPrompt) finalSystemPrompt = script.systemPrompt;
+                console.log(`Using script "${script.name}" for outbound call`);
+            }
+        }
+
         const callParams = {
             assistantId,
             phoneNumberId,
             customer,
         };
 
-        if (settings.systemPrompt || settings.firstMessage) {
+        if (finalSystemPrompt || finalFirstMessage) {
             callParams.assistantOverrides = {};
-            if (settings.firstMessage) {
-                callParams.assistantOverrides.firstMessage = settings.firstMessage;
+            if (finalFirstMessage) {
+                callParams.assistantOverrides.firstMessage = finalFirstMessage;
             }
-            if (settings.systemPrompt) {
+            if (finalSystemPrompt) {
                 callParams.assistantOverrides.model = {
-                    messages: [{ role: 'system', content: settings.systemPrompt }],
+                    messages: [{ role: 'system', content: finalSystemPrompt }],
                 };
             }
         }

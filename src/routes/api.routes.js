@@ -11,6 +11,11 @@ import {
     simulateOutboundCall,
     syncCall
 } from '../controllers/api.controller.js';
+import {
+    listScripts,
+    createScript,
+    deleteScript
+} from '../controllers/scripts.controller.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
 import {
@@ -33,5 +38,10 @@ router.get('/benchmark', requireAuth, getBenchmarkResults);
 router.post('/test/inbound', requireAuth, simulateInboundWebhook);
 router.post('/test/outbound', requireAuth, simulateOutboundCall);
 router.post('/sync-call', syncCall); // Internal sync for local dev (web call)
+
+// Script Management
+router.get('/scripts', requireAuth, listScripts);
+router.post('/scripts', requireAuth, createScript);
+router.delete('/scripts/:id', requireAuth, deleteScript);
 
 export default router;

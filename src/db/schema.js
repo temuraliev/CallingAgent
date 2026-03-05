@@ -28,3 +28,14 @@ export const settings = pgTable('settings', {
   value: jsonb('value'),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
+
+export const scripts = pgTable('scripts', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  description: text('description'),
+  firstMessage: text('first_message'),
+  systemPrompt: text('system_prompt'),
+  isActive: boolean('is_active').default(true),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});

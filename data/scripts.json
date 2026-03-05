@@ -1,0 +1,12 @@
+[
+  {
+    "id": 1772714957712,
+    "name": "Manual Test Script",
+    "description": "Created via test script",
+    "systemPrompt": "Test prompt",
+    "firstMessage": "Test message",
+    "isActive": true,
+    "createdAt": "2026-03-05T12:49:17.712Z",
+    "updatedAt": "2026-03-05T12:49:17.712Z"
+  }
+]

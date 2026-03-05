@@ -498,33 +498,169 @@ function CallsTable({ calls, onSelectCall }) {
 
 // ─── Scripts Page (placeholder) ───────────────────────────────────────────────
 
-function ScriptsPage() {
-  const nodes = [
-    { id: 1, label: 'Приветствие', type: 'start' },
-    { id: 2, label: 'Квалификация', type: 'node' },
-    { id: 3, label: 'Обработка возражений', type: 'warn' },
-    { id: 4, label: 'Закрытие', type: 'node' },
-  ];
+function ScriptsPage({ token }) {
+  const [scripts, setScripts] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [showModal, setShowModal] = useState(false);
+  const [newScript, setNewScript] = useState({ name: '', description: '', firstMessage: '', systemPrompt: '' });
+
+  const fetchScripts = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/scripts`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      setScripts(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Fetch scripts failed:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchScripts();
+  }, []);
+
+  const handleCreate = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_BASE}/scripts`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(newScript)
+      });
+      if (res.ok) {
+        setShowModal(false);
+        setNewScript({ name: '', description: '', firstMessage: '', systemPrompt: '' });
+        fetchScripts();
+      }
+    } catch (err) {
+      console.error('Create script failed:', err);
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Удалить этот скрипт?')) return;
+    try {
+      await fetch(`${API_BASE}/scripts/${id}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      fetchScripts();
+    } catch (err) {
+      console.error('Delete script failed:', err);
+    }
+  };
 
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">Call Script Builder</h1>
-        <button className="btn-primary">+ Новый скрипт</button>
+        <h1 className="page-title">Сценарии звонков</h1>
+        <button className="btn-primary" onClick={() => setShowModal(true)}>+ Новый скрипт</button>
       </div>
 
-      <div className="script-canvas">
-        {nodes.map((n, i) => (
-          <React.Fragment key={n.id}>
-            <div className={`script-node script-node--${n.type}`}>
-              <span>{n.label}</span>
-            </div>
-            {i < nodes.length - 1 && (
-              <div className="script-arrow">↓</div>
-            )}
-          </React.Fragment>
-        ))}
+      <div className="section">
+        {loading ? (
+          <div className="empty-state">
+            <RefreshCw size={24} className="spin" />
+            <span>Загрузка...</span>
+          </div>
+        ) : scripts.length === 0 ? (
+          <div className="empty-state">
+            <FileText size={24} />
+            <span>Скриптов пока нет. Создайте первый!</span>
+          </div>
+        ) : (
+          <div className="table-wrap">
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Название</th>
+                  <th>Описание</th>
+                  <th>Первое сообщение</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {scripts.map(s => (
+                  <tr key={s.id} className="table-row">
+                    <td>
+                      <div className="lead-name">{s.name}</div>
+                    </td>
+                    <td className="td-muted">{s.description || '—'}</td>
+                    <td className="td-muted">{s.firstMessage || '—'}</td>
+                    <td>
+                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <button className="row-action" style={{ background: 'none', color: '#ef4444' }} onClick={() => handleDelete(s.id)}>
+                          <span>Удалить</span>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
+
+      {showModal && (
+        <div className="modal-overlay">
+          <div className="modal" style={{ maxWidth: '600px' }}>
+            <div className="modal-header">
+              <h2>Новый сценарий</h2>
+              <button className="modal-close" onClick={() => setShowModal(false)}><X size={20} /></button>
+            </div>
+            <form onSubmit={handleCreate} className="outbound-form">
+              <div className="form-group">
+                <label>Название сценария</label>
+                <input
+                  required
+                  placeholder="Напр: Холодный обзвон - Турбазы"
+                  value={newScript.name}
+                  onChange={e => setNewScript({ ...newScript, name: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Описание</label>
+                <input
+                  placeholder="О чем этот скрипт..."
+                  value={newScript.description}
+                  onChange={e => setNewScript({ ...newScript, description: e.target.value })}
+                />
+              </div>
+              <div className="form-group">
+                <label>Первое сообщение (AI)</label>
+                <textarea
+                  placeholder="Добрый день! Меня зовут Алекс, я звоню вам из..."
+                  value={newScript.firstMessage}
+                  onChange={e => setNewScript({ ...newScript, firstMessage: e.target.value })}
+                  rows={2}
+                />
+              </div>
+              <div className="form-group">
+                <label>Системный промпт (Инструкция для AI)</label>
+                <textarea
+                  required
+                  placeholder="Ты — опытный менеджер по продажам. Твоя цель — назначить встречу..."
+                  value={newScript.systemPrompt}
+                  onChange={e => setNewScript({ ...newScript, systemPrompt: e.target.value })}
+                  rows={6}
+                />
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Отмена</button>
+                <button type="submit" className="btn-primary">Создать скрипт</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -603,6 +739,23 @@ function OutboundCallModal({ token, onClose, onSuccess }) {
   const [name, setName] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [scripts, setScripts] = useState([]);
+  const [scriptId, setScriptId] = useState('');
+
+  useEffect(() => {
+    const fetchScripts = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/scripts`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (Array.isArray(data)) setScripts(data);
+      } catch (err) {
+        console.error('Fetch scripts in modal failed:', err);
+      }
+    };
+    fetchScripts();
+  }, [token]);
 
   const handleCall = async (isDemo = false) => {
     if (!phone) return setError('Введите номер телефона');
@@ -616,7 +769,11 @@ function OutboundCallModal({ token, onClose, onSuccess }) {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ phoneNumber: phone, customerName: name })
+        body: JSON.stringify({
+          phoneNumber: phone,
+          customerName: name,
+          scriptId: scriptId || undefined
+        })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Ошибка запуска звонка');
@@ -652,6 +809,19 @@ function OutboundCallModal({ token, onClose, onSuccess }) {
             value={name}
             onChange={e => setName(e.target.value)}
           />
+
+          <label className="login-label">Сценарий (опц.)</label>
+          <select
+            className="login-input"
+            value={scriptId}
+            onChange={e => setScriptId(e.target.value)}
+            style={{ appearance: 'auto', paddingRight: '10px' }}
+          >
+            <option value="">Без сценария (настройки по умолчанию)</option>
+            {scripts.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
 
           {error && <div style={{ color: 'var(--rose)', fontSize: 12, marginBottom: 12 }}>{error}</div>}
 
@@ -790,7 +960,7 @@ export default function App() {
           {page === 'calls' && (
             <CallsPage calls={calls} loading={loading} onSelectCall={setSelectedCall} />
           )}
-          {page === 'scripts' && <ScriptsPage />}
+          {page === 'scripts' && <ScriptsPage token={token} />}
           {page === 'benchmark' && <BenchmarkPage token={token} />}
           {page === 'settings' && (
             <div className="page">

@@ -14,6 +14,7 @@ export const createOutboundCallSchema = z.object({
         phoneNumber: z.string().min(1, "Phone number is required"),
         customerName: z.string().optional(),
         assistantId: z.string().optional(),
+        scriptId: z.union([z.string(), z.number()]).optional(),
     })
 });
 
