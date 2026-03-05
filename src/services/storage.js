@@ -1,188 +1,124 @@
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { eq, desc, and, gte, lte, or, ilike, sql } from 'drizzle-orm';
+import { db } from '../db/index.js';
+import { calls } from '../db/schema.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CALLS_DIR = path.resolve(process.cwd(), 'calls');
-
-/**
- * Ensures the calls directory exists for the given date.
- * @param {string} dateStr - Date in YYYY-MM-DD format
- * @returns {Promise<string>} Full path to the date directory
- */
-async function ensureCallsDir(dateStr) {
-  const dir = path.join(CALLS_DIR, dateStr);
-  await fs.mkdir(dir, { recursive: true });
-  return dir;
-}
-
-/**
- * Saves call data to JSON file.
- * @param {Object} callData - Call data matching StoredCall schema
- * @returns {Promise<string>} Path to saved file
- */
 export async function saveCall(callData) {
-  const dateStr = new Date().toISOString().slice(0, 10);
-  const dir = await ensureCallsDir(dateStr);
-  const filename = `call-${callData.callId || Date.now()}.json`;
-  const filepath = path.join(dir, filename);
-  await fs.writeFile(filepath, JSON.stringify(callData, null, 2), 'utf-8');
-  return filepath;
+  const [saved] = await db.insert(calls).values({
+    callId: callData.callId,
+    timestamp: callData.timestamp ? new Date(callData.timestamp) : new Date(),
+    callType: callData.callType || 'inbound',
+    callerPhone: callData.callerPhone,
+    callerName: callData.callerName,
+    duration: callData.duration || 0,
+    recordingUrl: callData.recordingUrl,
+    transcript: callData.transcript || [],
+    summary: callData.summary,
+    leadTemperature: callData.leadTemperature || 'cold',
+    classificationReason: callData.classificationReason,
+    crmId: callData.crmId,
+    crmProvider: callData.crmProvider,
+    interestedActivities: callData.interestedActivities || [],
+    wantsCallback: callData.wantsCallback || false,
+    amoLeadId: callData.amoLeadId,
+  }).returning();
+  return saved;
 }
 
-/**
- * Updates an existing call file (e.g. after Amo CRM sync).
- * @param {string} callId - Call ID
- * @param {Object} updates - Partial updates to merge
- * @param {string} [dateStr] - Optional date (YYYY-MM-DD); defaults to today
- */
-export async function updateCall(callId, updates, dateStr) {
-  const d = dateStr || new Date().toISOString().slice(0, 10);
-  const filepath = path.join(CALLS_DIR, d, `call-${callId}.json`);
-  try {
-    const content = await fs.readFile(filepath, 'utf-8');
-    const existing = JSON.parse(content);
-    const merged = { ...existing, ...updates };
-    await fs.writeFile(filepath, JSON.stringify(merged, null, 2), 'utf-8');
-  } catch (err) {
-    if (err.code === 'ENOENT') {
-      throw new Error(`Call file not found: ${filepath}`);
-    }
-    throw err;
-  }
+export async function updateCall(callId, updates, _dateStr) {
+  const dbUpdates = { updatedAt: new Date() };
+
+  if (updates.crmId !== undefined) dbUpdates.crmId = updates.crmId;
+  if (updates.crmProvider !== undefined) dbUpdates.crmProvider = updates.crmProvider;
+  if (updates.leadTemperature !== undefined) dbUpdates.leadTemperature = updates.leadTemperature;
+  if (updates.classificationReason !== undefined) dbUpdates.classificationReason = updates.classificationReason;
+  if (updates.callerName !== undefined) dbUpdates.callerName = updates.callerName;
+  if (updates.interestedActivities !== undefined) dbUpdates.interestedActivities = updates.interestedActivities;
+  if (updates.wantsCallback !== undefined) dbUpdates.wantsCallback = updates.wantsCallback;
+
+  await db.update(calls).set(dbUpdates).where(eq(calls.callId, callId));
 }
 
-/**
- * Loads all calls from storage, optionally limited by date range.
- * @param {string} [from] - Start date YYYY-MM-DD
- * @param {string} [to] - End date YYYY-MM-DD
- * @returns {Promise<Object[]>}
- */
-async function loadAllCalls(from, to) {
-  const calls = [];
-  try {
-    const dateDirs = await fs.readdir(CALLS_DIR);
-    let sorted = dateDirs.filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort().reverse();
-    if (from) sorted = sorted.filter((d) => d >= from);
-    if (to) sorted = sorted.filter((d) => d <= to);
-    for (const dateStr of sorted) {
-      const dir = path.join(CALLS_DIR, dateStr);
-      const files = await fs.readdir(dir);
-      for (const f of files.filter((f) => f.endsWith('.json'))) {
-        const content = await fs.readFile(path.join(dir, f), 'utf-8');
-        calls.push(JSON.parse(content));
-      }
-    }
-    return calls.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-  } catch (err) {
-    if (err.code === 'ENOENT') return [];
-    throw err;
-  }
-}
-
-/**
- * Lists calls with filters and pagination.
- * @param {Object} [opts] - Filter options
- * @param {string} [opts.from] - Start date YYYY-MM-DD
- * @param {string} [opts.to] - End date YYYY-MM-DD
- * @param {string} [opts.status] - hot | warm | cold
- * @param {string} [opts.type] - inbound | outbound
- * @param {number} [opts.durationMin] - Min duration in seconds
- * @param {number} [opts.durationMax] - Max duration in seconds
- * @param {string} [opts.phone] - Search by phone (substring)
- * @param {number} [opts.limit=20] - Max calls to return
- * @param {number} [opts.offset=0] - Skip N calls
- * @returns {Promise<Object[]>}
- */
 export async function listCalls(opts = {}) {
   const limit = typeof opts === 'number' ? opts : (opts.limit ?? 20);
   const offset = opts.offset ?? 0;
-  const from = opts.from;
-  const to = opts.to;
-  const status = opts.status;
-  const type = opts.type;
-  const durationMin = opts.durationMin;
-  const durationMax = opts.durationMax;
-  const phone = opts.phone?.trim();
 
-  let calls = await loadAllCalls(from, to);
+  const conditions = [];
 
-  if (status) {
-    const s = status.toLowerCase();
-    calls = calls.filter((c) => (c.leadTemperature || '').toLowerCase() === s);
-  }
-  if (type) {
-    const t = type.toLowerCase();
-    calls = calls.filter((c) => (c.callType || 'inbound').toLowerCase() === t);
-  }
-  if (typeof durationMin === 'number' && durationMin >= 0) {
-    calls = calls.filter((c) => (c.duration ?? 0) >= durationMin);
-  }
-  if (typeof durationMax === 'number' && durationMax >= 0) {
-    calls = calls.filter((c) => (c.duration ?? 0) <= durationMax);
-  }
-  if (phone) {
-    const p = phone.replace(/\D/g, '');
-    calls = calls.filter((c) => {
-      const num = (c.callerPhone || '').replace(/\D/g, '');
-      return num.includes(p) || (c.callerName || '').toLowerCase().includes(phone.toLowerCase());
-    });
+  if (opts.from) conditions.push(gte(calls.timestamp, new Date(opts.from)));
+  if (opts.to) conditions.push(lte(calls.timestamp, new Date(`${opts.to}T23:59:59.999Z`)));
+  if (opts.status) conditions.push(eq(calls.leadTemperature, opts.status.toLowerCase()));
+  if (opts.type) conditions.push(eq(calls.callType, opts.type.toLowerCase()));
+  if (opts.durationMin !== undefined) conditions.push(gte(calls.duration, opts.durationMin));
+  if (opts.durationMax !== undefined) conditions.push(lte(calls.duration, opts.durationMax));
+  if (opts.phone) {
+    const p = opts.phone.replace(/\D/g, '');
+    if (p) {
+      conditions.push(
+        or(
+          ilike(calls.callerPhone, `%${p}%`),
+          ilike(calls.callerName, `%${opts.phone}%`)
+        )
+      );
+    } else {
+      conditions.push(ilike(calls.callerName, `%${opts.phone}%`));
+    }
   }
 
-  return calls.slice(offset, offset + limit);
+  const query = db.select().from(calls);
+  if (conditions.length > 0) {
+    query.where(and(...conditions));
+  }
+
+  return await query
+    .orderBy(desc(calls.timestamp))
+    .limit(limit)
+    .offset(offset);
 }
 
-/**
- * Finds the most recent call matching the given phone number.
- * @param {string} phone - Phone number (digits matched, substring ok)
- * @returns {Promise<Object|null>} Call object or null
- */
 export async function findLatestCallByPhone(phone) {
   if (!phone || !String(phone).trim()) return null;
-  const calls = await loadAllCalls();
   const p = String(phone).replace(/\D/g, '');
   if (!p) return null;
-  const match = calls.find((c) => (c.callerPhone || '').replace(/\D/g, '').includes(p) || p.includes((c.callerPhone || '').replace(/\D/g, '')));
-  return match || null;
+
+  const result = await db.select()
+    .from(calls)
+    .where(ilike(calls.callerPhone, `%${p}%`))
+    .orderBy(desc(calls.timestamp))
+    .limit(1);
+
+  return result[0] || null;
 }
 
-/**
- * Updates the most recent call for a given phone with lead classification data.
- * @param {string} phone - Phone number
- * @param {Object} updates - Fields to update
- * @returns {Promise<boolean>} True if updated, false if no matching call
- */
 export async function updateCallByPhone(phone, updates) {
   const call = await findLatestCallByPhone(phone);
   if (!call) return false;
-  const dateStr = call.timestamp ? call.timestamp.slice(0, 10) : new Date().toISOString().slice(0, 10);
-  await updateCall(call.callId, updates, dateStr);
+  await updateCall(call.callId, updates);
   return true;
 }
 
-/**
- * Returns aggregate stats for dashboard.
- * @param {Object} [opts] - Optional filters (from, to)
- * @returns {Promise<{ totalCalls: number, totalDurationSeconds: number, hotCount: number, warmCount: number, coldCount: number }>}
- */
 export async function getStats(opts = {}) {
-  const calls = await loadAllCalls(opts.from, opts.to);
-  let totalDurationSeconds = 0;
-  let hotCount = 0;
-  let warmCount = 0;
-  let coldCount = 0;
-  for (const c of calls) {
-    totalDurationSeconds += c.duration ?? 0;
-    const t = (c.leadTemperature || 'cold').toLowerCase();
-    if (t === 'hot') hotCount++;
-    else if (t === 'warm') warmCount++;
-    else coldCount++;
+  const conditions = [];
+  if (opts.from) conditions.push(gte(calls.timestamp, new Date(opts.from)));
+  if (opts.to) conditions.push(lte(calls.timestamp, new Date(`${opts.to}T23:59:59.999Z`)));
+
+  const query = db.select({
+    totalCalls: sql`count(*)`.mapWith(Number),
+    totalDurationSeconds: sql`sum(${calls.duration})`.mapWith(Number),
+    hotCount: sql`sum(case when ${calls.leadTemperature} = 'hot' then 1 else 0 end)`.mapWith(Number),
+    warmCount: sql`sum(case when ${calls.leadTemperature} = 'warm' then 1 else 0 end)`.mapWith(Number),
+    coldCount: sql`sum(case when ${calls.leadTemperature} = 'cold' then 1 else 0 end)`.mapWith(Number),
+  }).from(calls);
+
+  if (conditions.length > 0) {
+    query.where(and(...conditions));
   }
+
+  const [result] = await query;
   return {
-    totalCalls: calls.length,
-    totalDurationSeconds,
-    hotCount,
-    warmCount,
-    coldCount,
+    totalCalls: result?.totalCalls || 0,
+    totalDurationSeconds: result?.totalDurationSeconds || 0,
+    hotCount: result?.hotCount || 0,
+    warmCount: result?.warmCount || 0,
+    coldCount: result?.coldCount || 0,
   };
 }

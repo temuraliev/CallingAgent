@@ -6,15 +6,42 @@
   "type": "module",
   "scripts": {
     "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
+    "dev": "node src/index.js",
+    "build": "cd frontend && npm install && npm run build",
+    "test": "vitest run",
     "demo:seed": "node scripts/seed-demo-call.js",
-    "demo:simulate": "node scripts/simulate-webhook.js"
+    "demo:simulate": "node scripts/simulate-webhook.js",
+    "benchmark": "node scripts/evaluate.js --verbose",
+    "benchmark:quick": "node scripts/evaluate.js --quick --verbose"
   },
-  "keywords": ["vapi", "twilio", "amocrm", "voice-agent", "lead-qualification"],
+  "keywords": [
+    "vapi",
+    "twilio",
+    "amocrm",
+    "voice-agent",
+    "lead-qualification"
+  ],
   "license": "MIT",
   "dependencies": {
+    "@google/genai": "^1.43.0",
     "@vapi-ai/server-sdk": "^0.11.0",
-    "dotenv": "^16.4.5",
-    "express": "^4.21.0"
+    "dotenv": "^16.6.1",
+    "drizzle-orm": "^0.45.1",
+    "express": "^4.21.0",
+    "express-jwt": "^8.5.1",
+    "jsonwebtoken": "^9.0.3",
+    "jwks-rsa": "^4.0.1",
+    "pg": "^8.19.0",
+    "pg-boss": "^9.0.3",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.3",
+    "drizzle-kit": "^0.31.9",
+    "supertest": "^7.2.2",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }

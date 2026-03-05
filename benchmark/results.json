@@ -1,0 +1,202 @@
+{
+  "meta": {
+    "runAt": "2026-03-05T05:57:44.449Z",
+    "model": "gemini-2.5-flash",
+    "total": 10,
+    "evaluated": 10,
+    "errors": 0
+  },
+  "summary": {
+    "accuracy": 90,
+    "macroF1": 89.63,
+    "avgLatencyMs": 2516,
+    "totalMs": 133177
+  },
+  "perLabel": {
+    "cold": {
+      "tp": 3,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1
+    },
+    "warm": {
+      "tp": 4,
+      "fp": 1,
+      "fn": 0,
+      "precision": 0.8,
+      "recall": 1,
+      "f1": 0.888888888888889
+    },
+    "hot": {
+      "tp": 2,
+      "fp": 0,
+      "fn": 1,
+      "precision": 1,
+      "recall": 0.6666666666666666,
+      "f1": 0.8
+    }
+  },
+  "confusionMatrix": {
+    "cold": {
+      "cold": 3,
+      "warm": 0,
+      "hot": 0
+    },
+    "warm": {
+      "cold": 0,
+      "warm": 4,
+      "hot": 0
+    },
+    "hot": {
+      "cold": 0,
+      "warm": 1,
+      "hot": 2
+    }
+  },
+  "categoryStats": {
+    "demo_request": {
+      "total": 1,
+      "correct": 1
+    },
+    "rejection": {
+      "total": 1,
+      "correct": 1
+    },
+    "info_request": {
+      "total": 1,
+      "correct": 1
+    },
+    "wrong_number": {
+      "total": 1,
+      "correct": 1
+    },
+    "price_and_start": {
+      "total": 1,
+      "correct": 1
+    },
+    "inbound_lead": {
+      "total": 1,
+      "correct": 1
+    },
+    "hangup": {
+      "total": 1,
+      "correct": 1
+    },
+    "future_interest": {
+      "total": 1,
+      "correct": 1
+    },
+    "trial_request": {
+      "total": 1,
+      "correct": 0
+    },
+    "callback_request": {
+      "total": 1,
+      "correct": 1
+    }
+  },
+  "examples": [
+    {
+      "id": 1,
+      "expected": "hot",
+      "predicted": "hot",
+      "correct": true,
+      "latencyMs": 3314,
+      "reason": "Клиент активно выразил интерес к продукту и прямо запросил демонстрацию, что соответствует критериям горячего лида.",
+      "error": null,
+      "category": "demo_request"
+    },
+    {
+      "id": 2,
+      "expected": "cold",
+      "predicted": "cold",
+      "correct": true,
+      "latencyMs": 2923,
+      "reason": "Клиент прямо отказался от предложения, заявив, что ему это не нужно, что указывает на полное отсутствие интереса.",
+      "error": null,
+      "category": "rejection"
+    },
+    {
+      "id": 3,
+      "expected": "warm",
+      "predicted": "warm",
+      "correct": true,
+      "latencyMs": 1995,
+      "reason": "Клиент проявил интерес, запросив информацию на электронную почту, что указывает на потенциальную перспективу, но не готов к немедленному обсуждению.",
+      "error": null,
+      "category": "info_request"
+    },
+    {
+      "id": 4,
+      "expected": "cold",
+      "predicted": "cold",
+      "correct": true,
+      "latencyMs": 1615,
+      "reason": "Клиент сообщил, что это неправильный номер и частный абонент, что исключает любую перспективу продажи и соответствует определению 'cold' лида.",
+      "error": null,
+      "category": "wrong_number"
+    },
+    {
+      "id": 5,
+      "expected": "hot",
+      "predicted": "hot",
+      "correct": true,
+      "latencyMs": 2908,
+      "reason": "Клиент выразил явный интерес к продукту, задал вопросы о цене и сроках начала работы, что указывает на готовность к покупке и срочность.",
+      "error": null,
+      "category": "price_and_start"
+    },
+    {
+      "id": 6,
+      "expected": "warm",
+      "predicted": "warm",
+      "correct": true,
+      "latencyMs": 2133,
+      "reason": "Клиент оставил заявку и активно просит рассказать подробнее о предложении, что указывает на явный интерес к продукту/услуге.",
+      "error": null,
+      "category": "inbound_lead"
+    },
+    {
+      "id": 7,
+      "expected": "cold",
+      "predicted": "cold",
+      "correct": true,
+      "latencyMs": 1866,
+      "reason": "Клиент повесил трубку, не проявив никакого интереса к предложению. Это соответствует определению 'сброс звонка' для холодного лида.",
+      "error": null,
+      "category": "hangup"
+    },
+    {
+      "id": 8,
+      "expected": "warm",
+      "predicted": "warm",
+      "correct": true,
+      "latencyMs": 2992,
+      "reason": "Клиент выразил интерес к продукту и попросил перезвонить через 2 месяца, что указывает на потенциальную перспективу после завершения планирования бюджета.",
+      "error": null,
+      "category": "future_interest"
+    },
+    {
+      "id": 9,
+      "expected": "hot",
+      "predicted": "warm",
+      "correct": false,
+      "latencyMs": 2844,
+      "reason": "Клиент выразил интерес к продукту (\"Звучит интересно\") и запросил пробный период для тестирования перед принятием решения о покупке. Это указывает на потенциальную заинтересованность, но не на немедленную готовность к покупке.",
+      "error": null,
+      "category": "trial_request"
+    },
+    {
+      "id": 10,
+      "expected": "warm",
+      "predicted": "warm",
+      "correct": true,
+      "latencyMs": 2568,
+      "reason": "Клиент попросил перезвонить позже, что указывает на потенциальный интерес и необходимость повторного контакта.",
+      "error": null,
+      "category": "callback_request"
+    }
+  ]
+}

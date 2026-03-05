@@ -1,7 +1,6 @@
-import fs from 'fs/promises';
-import path from 'path';
-
-const SETTINGS_PATH = path.resolve(process.cwd(), 'data', 'settings.json');
+import { eq } from 'drizzle-orm';
+import { db } from '../db/index.js';
+import { settings } from '../db/schema.js';
 
 const DEFAULTS = {
   systemPrompt: `# Роль
@@ -43,26 +42,34 @@ const DEFAULTS = {
   firstMessage: 'Алло, здравствуйте! Это Александр, ассистент компании Push30. Звоню по поводу корпоративного фитнеса для ваших сотрудников. Вам удобно сейчас говорить?',
 };
 
-async function ensureDir() {
-  const dir = path.dirname(SETTINGS_PATH);
-  await fs.mkdir(dir, { recursive: true });
-}
+const SETTINGS_KEY = 'app_settings';
 
 export async function loadSettings() {
   try {
-    const content = await fs.readFile(SETTINGS_PATH, 'utf-8');
-    const parsed = JSON.parse(content);
-    return { ...DEFAULTS, ...parsed };
+    const result = await db.select().from(settings).where(eq(settings.key, SETTINGS_KEY));
+    if (result.length === 0) return { ...DEFAULTS };
+    return { ...DEFAULTS, ...(result[0].value || {}) };
   } catch (err) {
-    if (err.code === 'ENOENT') return { ...DEFAULTS };
-    throw err;
+    console.error('Failed to load settings from DB:', err.message);
+    return { ...DEFAULTS };
   }
 }
 
 export async function saveSettings(updates) {
-  await ensureDir();
   const current = await loadSettings();
   const merged = { ...current, ...updates };
-  await fs.writeFile(SETTINGS_PATH, JSON.stringify(merged, null, 2), 'utf-8');
+
+  try {
+    const existing = await db.select().from(settings).where(eq(settings.key, SETTINGS_KEY));
+    if (existing.length === 0) {
+      await db.insert(settings).values({ key: SETTINGS_KEY, value: merged });
+    } else {
+      await db.update(settings).set({ value: merged, updatedAt: new Date() }).where(eq(settings.key, SETTINGS_KEY));
+    }
+  } catch (err) {
+    console.error('Failed to save settings to DB:', err.message);
+    throw err;
+  }
+
   return merged;
 }

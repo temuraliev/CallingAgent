@@ -1,38 +1,13 @@
-const SYSTEM_PROMPT = `Ты — классификатор лидов по продажам. Проанализируй транскрипт и резюме разговора, затем классифицируй лид как cold, warm или hot.
+import { GoogleGenAI, Type } from '@google/genai';
+
+const SYSTEM_PROMPT = `Ты — логичный классификатор лидов по продажам. Проанализируй транскрипт и резюме разговора, затем классифицируй лид как cold, warm или hot.
 
 Определения:
-- COLD: Нет явного интереса, неправильный номер, сброс звонка, нет перспективы продажи.
-- WARM: Есть интерес к продукту/услуге, нужен повторный контакт, задавал вопросы, запрашивал информацию.
-- HOT: Готов к покупке, запросил демо/встречу, выразил срочность, готов продолжить.
+- COLD: Нет явного интереса, неправильный номер, сброс звонка, нет перспективы продажи, нецелевой.
+- WARM: Есть интерес к продукту/услуге, нужен повторный контакт, задавал вопросы, запросил какую-то информацию, просил перезвонить.
+- HOT: Готов к покупке, запросил демо/встречу, выразил срочность, готов продолжить прямо сейчас.
 
-Отвечай строго JSON без другого текста. Поле reason пиши на русском языке:
-{"temperature": "cold"|"warm"|"hot", "reason": "Краткое объяснение на русском"}`;
-
-async function geminiRequest(apiKey, prompt, systemPrompt, jsonMode = true) {
-  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-  const body = {
-    contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.2 },
-  };
-  if (systemPrompt) body.systemInstruction = { parts: [{ text: systemPrompt }] };
-  if (jsonMode) body.generationConfig.responseMimeType = 'application/json';
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const err = await response.text();
-    throw new Error(`Gemini API error ${response.status}: ${err}`);
-  }
-
-  const data = await response.json();
-  return data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-}
+Обязательно объясни причину решения на русском языке.`;
 
 /**
  * Classifies a lead based on transcript and summary using Gemini API.
@@ -44,19 +19,46 @@ export async function classifyLead(transcript, summary) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error('GEMINI_API_KEY is required for lead classification');
 
+  const ai = new GoogleGenAI({ apiKey });
+  const modelStr = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
   const userContent = `Резюме: ${summary || 'Нет'}\n\nТранскрипт:\n${transcript || 'Транскрипт отсутствует'}`;
-  const text = await geminiRequest(apiKey, userContent, SYSTEM_PROMPT, true);
-  if (!text) throw new Error('Empty classification response');
 
-  const parsed = JSON.parse(text);
-  const temp = (parsed.temperature || 'cold').toLowerCase();
-  const valid = ['cold', 'warm', 'hot'];
-  const temperature = valid.includes(temp) ? temp : 'cold';
+  try {
+    const response = await ai.models.generateContent({
+      model: modelStr,
+      contents: userContent,
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+        temperature: 0.2,
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            temperature: {
+              type: Type.STRING,
+              description: "Lead temperature: cold, warm, or hot",
+              enum: ["cold", "warm", "hot"]
+            },
+            reason: {
+              type: Type.STRING,
+              description: "Краткое объяснение классификации на русском языке"
+            }
+          },
+          required: ["temperature", "reason"]
+        }
+      }
+    });
 
-  return {
-    temperature,
-    reason: parsed.reason || 'Причина не указана',
-  };
+    const raw = typeof response.text === 'function' ? response.text() : response.text;
+    const result = JSON.parse(raw);
+    return {
+      temperature: result.temperature || 'cold',
+      reason: result.reason || 'Причина не указана'
+    };
+  } catch (err) {
+    console.error('Gemini Classification Error:', err);
+    throw new Error('Failed to classify lead properly.');
+  }
 }
 
 /**
@@ -71,14 +73,18 @@ export async function translateToRussian(text) {
   if (!apiKey) return text;
 
   try {
-    const result = await geminiRequest(
-      apiKey,
-      `Переведи следующий текст на русский язык. Верни только перевод, без пояснений:\n\n${text}`,
-      null,
-      false,
-    );
-    return result || text;
-  } catch {
+    const ai = new GoogleGenAI({ apiKey });
+    const modelStr = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+
+    const response = await ai.models.generateContent({
+      model: modelStr,
+      contents: `Переведи следующий текст на русский язык. Верни только точный перевод, без дополнительных пояснений:\n\n${text}`,
+      config: { temperature: 0.2 }
+    });
+    const txt = typeof response.text === 'function' ? response.text() : response.text;
+    return (txt || '').trim() || text;
+  } catch (err) {
+    console.error('Gemini Translation Error:', err);
     return text;
   }
 }
