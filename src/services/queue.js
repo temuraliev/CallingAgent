@@ -50,7 +50,7 @@ function transcriptToText(artifact) {
         .join('\\n');
 }
 
-async function handleVapiJob(payload) {
+export async function handleVapiJob(payload) {
     const { msg, call, callId, summary, from, callerName, callType, recordingUrl, isValidUuid } = payload;
 
     let duration = payload.duration;
@@ -129,7 +129,7 @@ async function handleVapiJob(payload) {
     }
 }
 
-async function handleClassificationJob(payload) {
+export async function handleClassificationJob(payload) {
     const { phone, updates } = payload;
     const clean = Object.fromEntries(Object.entries(updates).filter(([, v]) => v !== undefined));
     await updateCallByPhone(phone, clean);

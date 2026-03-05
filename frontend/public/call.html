@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Звонок – Calling Agent</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+  <div class="call-page">
+    <a href="/" class="back">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12" />
+        <polyline points="12 19 5 12 12 5" />
+      </svg>
+      Назад к панели
+    </a>
+    <div class="logo-icon" style="margin:0 auto 1.5rem;width:56px;height:56px;border-radius:16px;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path
+          d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
+      </svg>
+    </div>
+    <h1>Голосовой звонок</h1>
+    <p class="subtitle">Начните звонок из браузера. Телефон не нужен.</p>
+    <div id="setupMsg" class="setup-msg hidden">
+      Добавьте <code>VAPI_PUBLIC_API_KEY</code> и <code>VAPI_ASSISTANT_ID</code> в .env и переменные Railway.
+      Получить их можно в <a href="https://dashboard.vapi.ai" target="_blank" rel="noopener">VAPI Dashboard</a>.
+    </div>
+    <p id="readyMsg">Виджет звонка появится ниже. Разрешите доступ к микрофону.</p>
+    <div id="debugArea" style="margin-top: 2rem; display: none;">
+      <button id="syncBtn" class="btn btn-secondary"
+        style="background: #e2e8f0; border: 1px solid #cbd5e1; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;">
+        Синхронизировать звонок вручную
+      </button>
+      <p id="syncStatus" style="font-size: 0.8rem; margin-top: 0.5rem; color: #64748b;"></p>
+    </div>
+  </div>
+
+  <script>
+    (async function () {
+      const res = await fetch('/api/config');
+      const { vapiPublicKey, vapiAssistantId } = await res.json();
+
+      if (!vapiPublicKey || !vapiAssistantId) {
+        document.getElementById('setupMsg').classList.remove('hidden');
+        document.getElementById('readyMsg').classList.add('hidden');
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js';
+      script.defer = true;
+      script.async = true;
+      let activeCallId = null;
+
+      script.onload = function () {
+        const vapiInstance = window.vapiSDK.run({
+          apiKey: vapiPublicKey,
+          assistant: vapiAssistantId,
+        });
+
+        vapiInstance.on('call-start', (data) => {
+          console.log('--- CALL START ---', data);
+          // Try to extract ID from various possible locations in the payload
+          activeCallId = data?.id || data?.callId || data?.call?.id;
+          if (activeCallId) console.log('Found Call ID on start:', activeCallId);
+
+          document.getElementById('debugArea').style.display = 'block';
+          document.getElementById('syncStatus').innerText = 'Звонок идет... (ID: ' + (activeCallId || 'поиск...') + ')';
+        });
+
+        vapiInstance.on('message', (msg) => {
+          // Sometimes ID comes via a message event
+          if (!activeCallId && (msg?.callId || msg?.id)) {
+            activeCallId = msg.callId || msg.id;
+            console.log('Found Call ID via message:', activeCallId);
+          }
+        });
+
+        vapiInstance.on('call-end', async (data) => {
+          console.log('--- CALL END ---', data);
+          // Try current data, then fallback to what we caught earlier
+          const currentId = data?.id || data?.call?.id || data?.callId;
+          const finalId = currentId || activeCallId;
+
+          console.log('Resolved Final Call ID:', finalId);
+
+          if (finalId) {
+            document.getElementById('debugArea').style.display = 'block';
+            document.getElementById('syncStatus').innerText = 'Синхронизация...';
+            await triggerSync(finalId);
+          } else {
+            console.error('CRITICAL: No callId found. Full end data:', data);
+            document.getElementById('syncStatus').innerText = 'Ошибка: ID не найден. Проверьте F12.';
+          }
+        });
+
+        document.getElementById('syncBtn').onclick = async () => {
+          const callId = prompt('Введите Call ID (если авто-фиксация не сработала):', activeCallId || '');
+          if (callId) await triggerSync(callId);
+        };
+      };
+
+      async function triggerSync(callId) {
+        try {
+          const sRes = await fetch('/api/sync-call', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ callId })
+          });
+          const result = await sRes.json();
+          console.log('Sync result:', result);
+          document.getElementById('syncStatus').innerText = 'Готово! Проверьте Дашборд.';
+        } catch (err) {
+          console.error('Failed to trigger sync:', err);
+          document.getElementById('syncStatus').innerText = 'Ошибка синхронизации';
+        }
+      }
+      document.body.appendChild(script);
+    })();
+  </script>
+</body>
+
+</html>

@@ -13,8 +13,9 @@ const API_BASE = '/api';
 // ─── Utility ────────────────────────────────────────────────────────────────
 
 function fmt(seconds) {
+  if (isNaN(seconds) || seconds < 0) return '0:00';
   const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
+  const s = Math.floor(seconds % 60);
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
@@ -54,8 +55,8 @@ function Waveform({ active }) {
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'calls', label: 'Звонки', icon: Phone },
+  { id: 'democall', label: 'Demo Call', icon: Mic, href: '/call.html' },
   { id: 'scripts', label: 'Скрипты', icon: FileText },
-  { id: 'flow', label: 'System Flow', icon: GitBranch },
   { id: 'benchmark', label: 'Benchmark', icon: Target },
   { id: 'settings', label: 'Настройки', icon: Settings },
 ];
@@ -71,30 +72,37 @@ function Sidebar({ active, onNav, onLogout }) {
       </div>
 
       <nav className="sidebar-nav">
-        {NAV.map(({ id, label, icon: Icon }) => (
-          <button
-            key={id}
-            className={`sidebar-nav-item ${active === id ? 'sidebar-nav-item--active' : ''}`}
-            onClick={() => onNav(id)}
-          >
-            <Icon size={18} />
-            <span>{label}</span>
-            {active === id && <div className="sidebar-nav-indicator" />}
-          </button>
-        ))}
+        {NAV.map(({ id, label, icon: Icon, href }) => {
+          if (href) {
+            return (
+              <a
+                key={id}
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={`sidebar-nav-item ${active === id ? 'sidebar-nav-item--active' : ''}`}
+                style={{ textDecoration: 'none' }}
+              >
+                <Icon size={18} />
+                <span>{label}</span>
+              </a>
+            );
+          }
+          return (
+            <button
+              key={id}
+              className={`sidebar-nav-item ${active === id ? 'sidebar-nav-item--active' : ''}`}
+              onClick={() => onNav(id)}
+            >
+              <Icon size={18} />
+              <span>{label}</span>
+              {active === id && <div className="sidebar-nav-indicator" />}
+            </button>
+          );
+        })}
       </nav>
 
       <div className="sidebar-bottom">
-        <a
-          href="/call.html"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="sidebar-btn-primary"
-          style={{ width: '100%', marginBottom: 12, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-        >
-          <Mic size={16} />
-          <span>Поговорить (Браузер)</span>
-        </a>
         <div className="ai-status">
           <div className="ai-dot" />
           <span>AI Active</span>
@@ -296,7 +304,7 @@ function TranscriptPanel({ call, onClose }) {
 
 // ─── Dashboard Page ───────────────────────────────────────────────────────────
 
-function DashboardPage({ stats, calls, loading, onSelectCall }) {
+function DashboardPage({ stats, calls, loading, onSelectCall, token, fetchData }) {
   return (
     <div className="page">
       <div className="page-header">
@@ -310,10 +318,10 @@ function DashboardPage({ stats, calls, loading, onSelectCall }) {
           <Volume2 size={14} />
           <span>Female / Male</span>
         </div>
-        <div style={{ marginLeft: 'auto' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
           <button
             className="btn btn-primary"
-            style={{ padding: '6px 12px', fontSize: '13px', borderRadius: '4px', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            style={{ padding: '6px 12px', fontSize: '13px', borderRadius: '4px', background: 'var(--bg-3)', color: 'var(--text-1)', border: '1px solid var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
             onClick={async () => {
               try {
                 const res = await fetch(`${API_BASE}/test/inbound`, {
@@ -642,7 +650,7 @@ function OutboundCallModal({ token, onClose, onSuccess }) {
             className="login-input"
             placeholder="Иван Иванович"
             value={name}
-            onChange={setName}
+            onChange={e => setName(e.target.value)}
           />
 
           {error && <div style={{ color: 'var(--rose)', fontSize: 12, marginBottom: 12 }}>{error}</div>}
@@ -770,13 +778,19 @@ export default function App() {
         {/* Pages */}
         <div className="page-area">
           {page === 'dashboard' && (
-            <DashboardPage stats={stats} calls={calls} loading={loading} onSelectCall={setSelectedCall} />
+            <DashboardPage
+              stats={stats}
+              calls={calls}
+              loading={loading}
+              onSelectCall={setSelectedCall}
+              token={token}
+              fetchData={fetchData}
+            />
           )}
           {page === 'calls' && (
             <CallsPage calls={calls} loading={loading} onSelectCall={setSelectedCall} />
           )}
           {page === 'scripts' && <ScriptsPage />}
-          {page === 'flow' && <FlowPage />}
           {page === 'benchmark' && <BenchmarkPage token={token} />}
           {page === 'settings' && (
             <div className="page">

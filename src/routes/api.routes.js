@@ -8,7 +8,8 @@ import {
     createOutboundCall,
     getBenchmarkResults,
     simulateInboundWebhook,
-    simulateOutboundCall
+    simulateOutboundCall,
+    syncCall
 } from '../controllers/api.controller.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
@@ -31,5 +32,6 @@ router.get('/benchmark', requireAuth, getBenchmarkResults);
 
 router.post('/test/inbound', requireAuth, simulateInboundWebhook);
 router.post('/test/outbound', requireAuth, simulateOutboundCall);
+router.post('/sync-call', syncCall); // Internal sync for local dev (web call)
 
 export default router;

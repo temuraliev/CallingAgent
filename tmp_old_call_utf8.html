@@ -1,0 +1,56 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>╨Ч╨▓╨╛╨╜╨╛╨║ тАУ Calling Agent</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="call-page">
+    <a href="/" class="back">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+      ╨Э╨░╨╖╨░╨┤ ╨║ ╨┐╨░╨╜╨╡╨╗╨╕
+    </a>
+    <div class="logo-icon" style="margin:0 auto 1.5rem;width:56px;height:56px;border-radius:16px;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6A19.79 19.79 0 012.12 4.18 2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
+      </svg>
+    </div>
+    <h1>╨У╨╛╨╗╨╛╤Б╨╛╨▓╨╛╨╣ ╨╖╨▓╨╛╨╜╨╛╨║</h1>
+    <p class="subtitle">╨Э╨░╤З╨╜╨╕╤В╨╡ ╨╖╨▓╨╛╨╜╨╛╨║ ╨╕╨╖ ╨▒╤А╨░╤Г╨╖╨╡╤А╨░. ╨в╨╡╨╗╨╡╤Д╨╛╨╜ ╨╜╨╡ ╨╜╤Г╨╢╨╡╨╜.</p>
+    <div id="setupMsg" class="setup-msg hidden">
+      ╨Ф╨╛╨▒╨░╨▓╤М╤В╨╡ <code>VAPI_PUBLIC_API_KEY</code> ╨╕ <code>VAPI_ASSISTANT_ID</code> ╨▓ .env ╨╕ ╨┐╨╡╤А╨╡╨╝╨╡╨╜╨╜╤Л╨╡ Railway.
+      ╨Я╨╛╨╗╤Г╤З╨╕╤В╤М ╨╕╤Е ╨╝╨╛╨╢╨╜╨╛ ╨▓ <a href="https://dashboard.vapi.ai" target="_blank" rel="noopener">VAPI Dashboard</a>.
+    </div>
+    <p id="readyMsg">╨Т╨╕╨┤╨╢╨╡╤В ╨╖╨▓╨╛╨╜╨║╨░ ╨┐╨╛╤П╨▓╨╕╤В╤Б╤П ╨╜╨╕╨╢╨╡. ╨а╨░╨╖╤А╨╡╤И╨╕╤В╨╡ ╨┤╨╛╤Б╤В╤Г╨┐ ╨║ ╨╝╨╕╨║╤А╨╛╤Д╨╛╨╜╤Г.</p>
+  </div>
+
+  <script>
+    (async function() {
+      const res = await fetch('/api/config');
+      const { vapiPublicKey, vapiAssistantId } = await res.json();
+
+      if (!vapiPublicKey || !vapiAssistantId) {
+        document.getElementById('setupMsg').classList.remove('hidden');
+        document.getElementById('readyMsg').classList.add('hidden');
+        return;
+      }
+
+      const script = document.createElement('script');
+      script.src = 'https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js';
+      script.defer = true;
+      script.async = true;
+      script.onload = function() {
+        window.vapiSDK.run({
+          apiKey: vapiPublicKey,
+          assistant: vapiAssistantId,
+        });
+      };
+      document.body.appendChild(script);
+    })();
+  </script>
+</body>
+</html>

@@ -23,11 +23,11 @@ export const listCallsSchema = z.object({
         to: z.string().optional(),
         status: z.enum(['cold', 'warm', 'hot']).optional(),
         type: z.enum(['inbound', 'outbound']).optional(),
-        durationMin: z.string().regex(/^\\d+$/).transform(Number).optional(),
-        durationMax: z.string().regex(/^\\d+$/).transform(Number).optional(),
+        durationMin: z.string().regex(/^\d+$/).transform(Number).optional(),
+        durationMax: z.string().regex(/^\d+$/).transform(Number).optional(),
         phone: z.string().optional(),
-        limit: z.string().regex(/^\\d+$/).transform(Number).optional(),
-        offset: z.string().regex(/^\\d+$/).transform(Number).optional(),
+        limit: z.string().regex(/^\d+$/).transform(Number).optional(),
+        offset: z.string().regex(/^\d+$/).transform(Number).optional(),
     })
 });
 

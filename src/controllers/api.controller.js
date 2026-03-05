@@ -206,6 +206,49 @@ export const createOutboundCall = async (req, res) => {
     }
 };
 
+export const syncCall = async (req, res) => {
+    console.log('--- Sync triggered ---', req.body);
+    try {
+        const { callId } = req.body || {};
+        if (!callId) return res.status(400).json({ error: 'callId is required' });
+
+        const { handleVapiJob } = await import('../services/queue.js');
+        const vapi = process.env.VAPI_API_KEY ? new VapiClient({ token: process.env.VAPI_API_KEY }) : null;
+
+        if (!vapi) throw new Error('VAPI_API_KEY not configured');
+
+        // Fetch data once immediately and trigger processing
+        const call = await vapi.calls.get(callId);
+        const payload = {
+            msg: { type: 'end-of-call-report', summary: call.summary || '' },
+            call,
+            callId: call.id,
+            summary: call.summary || '',
+            from: call.customer?.number || 'unknown',
+            callerName: call.customer?.name || null,
+            callType: call.direction || 'inbound',
+            recordingUrl: call.artifact?.recordingUrl || '',
+            isValidUuid: true,
+            duration: call.duration || 0,
+            transcript: '', // handleVapiJob will fetch it
+            transcriptForStorage: []
+        };
+
+        console.log(`Syncing call ${callId} from Vapi...`);
+        // We run it async but background-ish
+        handleVapiJob(payload).then(() => {
+            console.log(`Sync completed for ${callId}`);
+        }).catch(err => {
+            console.error(`Sync background error for ${callId}:`, err);
+        });
+
+        res.json({ success: true, message: 'Sync triggered' });
+    } catch (err) {
+        console.error('Sync call error:', err);
+        res.status(500).json({ error: err.message });
+    }
+};
+
 export const getBenchmarkResults = (req, res) => {
     const resultsPath = join(ROOT, 'benchmark', 'results.json');
     try {
@@ -247,8 +290,8 @@ export const simulateInboundWebhook = async (req, res) => {
             from: call.customer.number, callerName: call.customer.name,
             callType: 'inbound', recordingUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
             isValidUuid: false, duration: call.duration,
-            transcript: msg.artifact.messages.map(m => `[${m.role}]: ${m.message}`).join('\n'),
-            transcriptForStorage: msg.artifact.messages
+            transcript: call.artifact.messages.map(m => `[${m.role}]: ${m.message}`).join('\n'),
+            transcriptForStorage: call.artifact.messages
         };
 
         await handleVapiJob(payload);

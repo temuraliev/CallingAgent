@@ -1,0 +1,107 @@
+[
+  {
+    "id": 1772697322530,
+    "callId": "sim-in-1772697322526",
+    "timestamp": "2026-03-05T07:55:22.527Z",
+    "callType": "inbound",
+    "callerPhone": "+998901234567",
+    "callerName": "Иван Сергеевич",
+    "duration": 120,
+    "recordingUrl": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+    "transcript": [
+      {
+        "role": "assistant",
+        "message": "Здравствуйте! Чем могу помочь?"
+      },
+      {
+        "role": "user",
+        "message": "Добрый день, подскажите ваши цены."
+      },
+      {
+        "role": "assistant",
+        "message": "Конечно! Стоимость начинается от 10 000 руб. Желаете демо?"
+      },
+      {
+        "role": "user",
+        "message": "Возможно. Мне нужно обсудить с коллегами. Можете перезвонить позже?"
+      }
+    ],
+    "summary": "Клиент интересуется услугами и просит перезвонить. Кажется заинтересованным, но нужно уточнить детали у команды.",
+    "leadTemperature": "cold",
+    "classificationReason": "",
+    "crmId": null,
+    "crmProvider": null,
+    "createdAt": "2026-03-05T07:55:22.530Z",
+    "updatedAt": "2026-03-05T07:55:22.530Z"
+  },
+  {
+    "id": 1772712782408,
+    "callId": "sim-in-1772712782404",
+    "timestamp": "2026-03-05T12:13:02.405Z",
+    "callType": "inbound",
+    "callerPhone": "+998901234567",
+    "callerName": "Иван Сергеевич",
+    "duration": 120,
+    "recordingUrl": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+    "transcript": [
+      {
+        "role": "assistant",
+        "message": "Здравствуйте! Чем могу помочь?"
+      },
+      {
+        "role": "user",
+        "message": "Добрый день, подскажите ваши цены."
+      },
+      {
+        "role": "assistant",
+        "message": "Конечно! Стоимость начинается от 10 000 руб. Желаете демо?"
+      },
+      {
+        "role": "user",
+        "message": "Возможно. Мне нужно обсудить с коллегами. Можете перезвонить позже?"
+      }
+    ],
+    "summary": "Клиент интересуется услугами и просит перезвонить. Кажется заинтересованным, но нужно уточнить детали у команды.",
+    "leadTemperature": "cold",
+    "classificationReason": "",
+    "crmId": null,
+    "crmProvider": null,
+    "createdAt": "2026-03-05T12:13:02.408Z",
+    "updatedAt": "2026-03-05T12:13:02.408Z"
+  },
+  {
+    "id": 1772712785457,
+    "callId": "sim-in-1772712785455",
+    "timestamp": "2026-03-05T12:13:05.455Z",
+    "callType": "inbound",
+    "callerPhone": "+998901234567",
+    "callerName": "Иван Сергеевич",
+    "duration": 120,
+    "recordingUrl": "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3",
+    "transcript": [
+      {
+        "role": "assistant",
+        "message": "Здравствуйте! Чем могу помочь?"
+      },
+      {
+        "role": "user",
+        "message": "Добрый день, подскажите ваши цены."
+      },
+      {
+        "role": "assistant",
+        "message": "Конечно! Стоимость начинается от 10 000 руб. Желаете демо?"
+      },
+      {
+        "role": "user",
+        "message": "Возможно. Мне нужно обсудить с коллегами. Можете перезвонить позже?"
+      }
+    ],
+    "summary": "Клиент интересуется услугами и просит перезвонить. Кажется заинтересованным, но нужно уточнить детали у команды.",
+    "leadTemperature": "cold",
+    "classificationReason": "",
+    "crmId": null,
+    "crmProvider": null,
+    "createdAt": "2026-03-05T12:13:05.457Z",
+    "updatedAt": "2026-03-05T12:13:05.457Z"
+  }
+]
