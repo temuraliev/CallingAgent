@@ -85,6 +85,16 @@ function Sidebar({ active, onNav, onLogout }) {
       </nav>
 
       <div className="sidebar-bottom">
+        <a
+          href="/call.html"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="sidebar-btn-primary"
+          style={{ width: '100%', marginBottom: 12, textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+        >
+          <Mic size={16} />
+          <span>Поговорить (Браузер)</span>
+        </a>
         <div className="ai-status">
           <div className="ai-dot" />
           <span>AI Active</span>
@@ -617,7 +627,7 @@ function OutboundCallModal({ token, onClose, onSuccess }) {
           <X size={18} />
         </button>
         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Новый звонок</h2>
-        <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>Запустите исходящий звонок через Vapi</p>
+        <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>Запустите исходящий звонок. Требуется VAPI_PHONE_NUMBER_ID в .env для реального вызова.</p>
 
         <div className="login-form">
           <label className="login-label">Номер телефона</label>
@@ -632,7 +642,7 @@ function OutboundCallModal({ token, onClose, onSuccess }) {
             className="login-input"
             placeholder="Иван Иванович"
             value={name}
-            onChange={e => setName(e.target.value)}
+            onChange={setName}
           />
 
           {error && <div style={{ color: 'var(--rose)', fontSize: 12, marginBottom: 12 }}>{error}</div>}
@@ -651,6 +661,9 @@ function OutboundCallModal({ token, onClose, onSuccess }) {
             >
               Demo
             </button>
+          </div>
+          <div style={{ marginTop: 16, fontSize: 11, color: 'var(--text-3)', textAlign: 'center' }}>
+            Или используйте кнопку "Поговорить" в меню слева для звонка через браузер.
           </div>
         </div>
       </div>
