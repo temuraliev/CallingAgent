@@ -306,9 +306,17 @@ function DashboardPage({ stats, calls, loading, onSelectCall }) {
             style={{ padding: '6px 12px', fontSize: '13px', borderRadius: '4px', background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
             onClick={async () => {
               try {
-                // We'll hit our own mock endpoint or simulation script if we had one.
-                // Since the mock is hardcoded in `api/calls`, we'll just refresh.
-                alert('Локальная БД выключена. Выводятся Mock данные (Звонок "Демо Клиента") во вкладке "Звонки" и ниже.');
+                const res = await fetch(`${API_BASE}/test/inbound`, {
+                  method: 'POST',
+                  headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (res.ok) {
+                  alert('Тестовый входящий вебхук отправлен! Звонок появится в списке через пару секунд.');
+                  fetchData();
+                } else {
+                  const errData = await res.json();
+                  alert('Ошибка: ' + errData.error);
+                }
               } catch (e) {
                 console.error(e);
               }
@@ -570,6 +578,86 @@ function LoginScreen({ token, setToken, onLogin }) {
   );
 }
 
+// ─── Outbound Call Modal ───────────────────────────────────────────────────────
+
+function OutboundCallModal({ token, onClose, onSuccess }) {
+  const [phone, setPhone] = useState('');
+  const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleCall = async (isDemo = false) => {
+    if (!phone) return setError('Введите номер телефона');
+    setLoading(true);
+    setError('');
+    try {
+      const endpoint = isDemo ? `${API_BASE}/test/outbound` : `${API_BASE}/calls/outbound`;
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ phoneNumber: phone, customerName: name })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Ошибка запуска звонка');
+      onSuccess();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="transcript-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="login-card" style={{ width: 360, position: 'relative' }}>
+        <button className="icon-btn" style={{ position: 'absolute', right: 16, top: 16 }} onClick={onClose}>
+          <X size={18} />
+        </button>
+        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Новый звонок</h2>
+        <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>Запустите исходящий звонок через Vapi</p>
+
+        <div className="login-form">
+          <label className="login-label">Номер телефона</label>
+          <input
+            className="login-input"
+            placeholder="+7..."
+            value={phone}
+            onChange={e => setPhone(e.target.value)}
+          />
+          <label className="login-label">Имя клиента (опц.)</label>
+          <input
+            className="login-input"
+            placeholder="Иван Иванович"
+            value={name}
+            onChange={e => setName(e.target.value)}
+          />
+
+          {error && <div style={{ color: 'var(--rose)', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+            <button className="login-btn" style={{ flex: 2 }} onClick={() => handleCall(false)} disabled={loading}>
+              {loading ? <RefreshCw size={14} className="spin" /> : <PhoneOutgoing size={14} />}
+              <span>Позвонить</span>
+            </button>
+            <button
+              className="login-btn"
+              style={{ flex: 1, background: 'var(--bg-4)', color: 'var(--text-1)' }}
+              onClick={() => handleCall(true)}
+              disabled={loading}
+              title="Симуляция без реального звонка"
+            >
+              Demo
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── App Root ─────────────────────────────────────────────────────────────────
 
 export default function App() {
@@ -581,6 +669,7 @@ export default function App() {
   const [error, setError] = useState('');
   const [page, setPage] = useState('dashboard');
   const [selectedCall, setSelectedCall] = useState(null);
+  const [showCallModal, setShowCallModal] = useState(false);
 
   const handleLogin = e => {
     e.preventDefault();
@@ -645,6 +734,14 @@ export default function App() {
             >
               <RefreshCw size={15} className={loading ? 'spin' : ''} />
             </button>
+            <button
+              className="topbar-btn"
+              onClick={() => setShowCallModal(true)}
+              style={{ marginLeft: 8, display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <PhoneOutgoing size={14} />
+              <span>Новый звонок</span>
+            </button>
           </div>
           <div className="topbar-right">
             {error && (
@@ -682,6 +779,17 @@ export default function App() {
         <div className="transcript-overlay">
           <TranscriptPanel call={selectedCall} onClose={() => setSelectedCall(null)} />
         </div>
+      )}
+      {/* Outbound Call Modal */}
+      {showCallModal && (
+        <OutboundCallModal
+          token={token}
+          onClose={() => setShowCallModal(false)}
+          onSuccess={() => {
+            setShowCallModal(false);
+            fetchData();
+          }}
+        />
       )}
     </div>
   );

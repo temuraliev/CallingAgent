@@ -1108,6 +1108,54 @@ input {
 }
 
 /* ── Misc ────────────────────────────────────────────────────────────────── */
+.topbar-refresh {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.topbar-refresh:hover {
+  background: var(--bg-4);
+  color: var(--text-1);
+}
+
+.topbar-btn {
+  height: 32px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 8px;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 6px rgba(79, 110, 247, 0.2);
+}
+
+.topbar-btn:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(79, 110, 247, 0.3);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
 .icon-btn {
   width: 32px;
   height: 32px;

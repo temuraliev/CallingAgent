@@ -209,14 +209,91 @@ export const createOutboundCall = async (req, res) => {
 export const getBenchmarkResults = (req, res) => {
     const resultsPath = join(ROOT, 'benchmark', 'results.json');
     try {
-        const raw = readFileSync(resultsPath, 'utf8');
-        res.json(JSON.parse(raw));
+        const data = readFileSync(resultsPath, 'utf-8');
+        res.json(JSON.parse(data));
     } catch (err) {
-        if (err.code === 'ENOENT') {
-            return res.status(404).json({
-                error: 'Результаты бенчмарка не найдены. Запустите: node scripts/evaluate.js'
-            });
-        }
+        res.status(404).json({ error: 'Benchmark results not found' });
+    }
+};
+
+export const simulateInboundWebhook = async (req, res) => {
+    try {
+        const { handleVapiJob } = await import('../services/queue.js');
+        const mockPayload = {
+            message: {
+                type: 'end-of-call-report',
+                summary: 'Клиент интересуется услугами и просит перезвонить. Кажется заинтересованным, но нужно уточнить детали у команды.',
+                call: {
+                    id: `sim-in-${Date.now()}`,
+                    duration: 120,
+                    direction: 'inbound',
+                    customer: { number: '+998901234567', name: 'Иван Сергеевич' },
+                    artifact: {
+                        messages: [
+                            { role: 'assistant', message: 'Здравствуйте! Чем могу помочь?' },
+                            { role: 'user', message: 'Добрый день, подскажите ваши цены.' },
+                            { role: 'assistant', message: 'Конечно! Стоимость начинается от 10 000 руб. Желаете демо?' },
+                            { role: 'user', message: 'Возможно. Мне нужно обсудить с коллегами. Можете перезвонить позже?' },
+                        ],
+                    },
+                },
+            },
+        };
+
+        const msg = mockPayload.message;
+        const call = msg.call;
+        const payload = {
+            msg, call, callId: call.id, summary: msg.summary,
+            from: call.customer.number, callerName: call.customer.name,
+            callType: 'inbound', recordingUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+            isValidUuid: false, duration: call.duration,
+            transcript: msg.artifact.messages.map(m => `[${m.role}]: ${m.message}`).join('\n'),
+            transcriptForStorage: msg.artifact.messages
+        };
+
+        await handleVapiJob(payload);
+        res.status(200).json({ success: true, callId: call.id });
+    } catch (err) {
+        console.error('Simulate inbound error:', err);
         res.status(500).json({ error: err.message });
+    }
+};
+
+export const simulateOutboundCall = async (req, res) => {
+    try {
+        const { handleVapiJob } = await import('../services/queue.js');
+        const phone = req.body?.phoneNumber || '+79991234567';
+        const name = req.body?.customerName || 'Тестовый Исходящий';
+
+        const callId = `sim-out-${Date.now()}`;
+
+        // Simulating the call process: it normally takes time.
+        // We'll respond "started" now, and "finish" it in a few seconds in the background.
+        res.status(201).json({ callId, status: 'queued-demo' });
+
+        setTimeout(async () => {
+            try {
+                const payload = {
+                    msg: {}, call: { id: callId }, callId,
+                    summary: 'Исходящий звонок: клиент подтвердил встречу.',
+                    from: phone, callerName: name, callType: 'outbound',
+                    recordingUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
+                    isValidUuid: false, duration: 85,
+                    transcript: `[assistant]: Добрый день, ${name}! Мы договаривались о звонке.\n[user]: Да, привет. Я готов подтвердить встречу на завтра.\n[assistant]: Отлично, записал. До связи!`,
+                    transcriptForStorage: [
+                        { role: 'assistant', content: `Добрый день, ${name}! Мы договаривались о звонке.` },
+                        { role: 'user', content: 'Да, привет. Я готов подтвердить встречу на завтра.' },
+                        { role: 'assistant', content: 'Отлично, записал. До связи!' }
+                    ]
+                };
+                await handleVapiJob(payload);
+                console.log(`Demo outbound call ${callId} finished simulation.`);
+            } catch (err) {
+                console.error('Simulate outbound background error:', err);
+            }
+        }, 3000);
+    } catch (err) {
+        console.error('Simulate outbound error:', err);
+        if (!res.headersSent) res.status(500).json({ error: err.message });
     }
 };

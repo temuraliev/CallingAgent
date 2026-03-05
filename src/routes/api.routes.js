@@ -6,7 +6,9 @@ import {
     getCalls,
     getStatsSummary,
     createOutboundCall,
-    getBenchmarkResults
+    getBenchmarkResults,
+    simulateInboundWebhook,
+    simulateOutboundCall
 } from '../controllers/api.controller.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
@@ -26,5 +28,8 @@ router.get('/calls', requireAuth, validate(listCallsSchema), getCalls);
 router.get('/stats', requireAuth, validate(getStatsSchema), getStatsSummary);
 router.post('/calls/outbound', requireAuth, validate(createOutboundCallSchema), createOutboundCall);
 router.get('/benchmark', requireAuth, getBenchmarkResults);
+
+router.post('/test/inbound', requireAuth, simulateInboundWebhook);
+router.post('/test/outbound', requireAuth, simulateOutboundCall);
 
 export default router;
