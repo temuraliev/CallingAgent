@@ -1,202 +1,183 @@
 {
   "meta": {
-    "runAt": "2026-03-05T05:57:44.449Z",
-    "model": "gemini-2.5-flash",
+    "runAt": "2026-03-07T09:11:47.674Z",
+    "model": "gemini-3-flash",
     "total": 10,
-    "evaluated": 10,
-    "errors": 0
+    "evaluated": 0,
+    "errors": 10,
+    "totalMs": 111495
   },
   "summary": {
-    "accuracy": 90,
-    "macroF1": 89.63,
-    "avgLatencyMs": 2516,
-    "totalMs": 133177
+    "accuracy": 0,
+    "macroF1": 0,
+    "avgLatencyMs": 0,
+    "totalMs": 111495
   },
   "perLabel": {
     "cold": {
-      "tp": 3,
+      "tp": 0,
       "fp": 0,
       "fn": 0,
-      "precision": 1,
-      "recall": 1,
-      "f1": 1
+      "precision": 0,
+      "recall": 0,
+      "f1": 0
     },
     "warm": {
-      "tp": 4,
-      "fp": 1,
+      "tp": 0,
+      "fp": 0,
       "fn": 0,
-      "precision": 0.8,
-      "recall": 1,
-      "f1": 0.888888888888889
+      "precision": 0,
+      "recall": 0,
+      "f1": 0
     },
     "hot": {
-      "tp": 2,
+      "tp": 0,
       "fp": 0,
-      "fn": 1,
-      "precision": 1,
-      "recall": 0.6666666666666666,
-      "f1": 0.8
+      "fn": 0,
+      "precision": 0,
+      "recall": 0,
+      "f1": 0
     }
   },
   "confusionMatrix": {
     "cold": {
-      "cold": 3,
+      "cold": 0,
       "warm": 0,
       "hot": 0
     },
     "warm": {
       "cold": 0,
-      "warm": 4,
+      "warm": 0,
       "hot": 0
     },
     "hot": {
       "cold": 0,
-      "warm": 1,
-      "hot": 2
+      "warm": 0,
+      "hot": 0
     }
   },
-  "categoryStats": {
-    "demo_request": {
-      "total": 1,
-      "correct": 1
-    },
-    "rejection": {
-      "total": 1,
-      "correct": 1
-    },
-    "info_request": {
-      "total": 1,
-      "correct": 1
-    },
-    "wrong_number": {
-      "total": 1,
-      "correct": 1
-    },
-    "price_and_start": {
-      "total": 1,
-      "correct": 1
-    },
-    "inbound_lead": {
-      "total": 1,
-      "correct": 1
-    },
-    "hangup": {
-      "total": 1,
-      "correct": 1
-    },
-    "future_interest": {
-      "total": 1,
-      "correct": 1
-    },
-    "trial_request": {
-      "total": 1,
-      "correct": 0
-    },
-    "callback_request": {
-      "total": 1,
-      "correct": 1
-    }
-  },
+  "categoryStats": {},
+  "worstCategories": [],
   "examples": [
     {
       "id": 1,
       "expected": "hot",
-      "predicted": "hot",
-      "correct": true,
-      "latencyMs": 3314,
-      "reason": "Клиент активно выразил интерес к продукту и прямо запросил демонстрацию, что соответствует критериям горячего лида.",
-      "error": null,
-      "category": "demo_request"
+      "predicted": null,
+      "correct": false,
+      "latencyMs": 461,
+      "reason": null,
+      "error": "Failed to classify lead properly.",
+      "category": "demo_request",
+      "transcript": "Агент: Здравствуйте! Меня зовут Алексей, я из компании TechSales. Расскажите, вам интересно наше решение для автоматизации продаж?\nКлиент: Да, мы как раз ищем что-то подобное. Когда можно встретиться и посмотреть демо?",
+      "summary": "Клиент активно интересуется продуктом, просит демо."
     },
     {
       "id": 2,
       "expected": "cold",
-      "predicted": "cold",
-      "correct": true,
-      "latencyMs": 2923,
-      "reason": "Клиент прямо отказался от предложения, заявив, что ему это не нужно, что указывает на полное отсутствие интереса.",
-      "error": null,
-      "category": "rejection"
+      "predicted": null,
+      "correct": false,
+      "latencyMs": 320,
+      "reason": null,
+      "error": "Failed to classify lead properly.",
+      "category": "rejection",
+      "transcript": "Агент: Добрый день! Интересует ли вас автоматизация звонков?\nКлиент: Нет, спасибо. Нам это не нужно.",
+      "summary": "Клиент отказался, не заинтересован."
     },
     {
       "id": 3,
       "expected": "warm",
-      "predicted": "warm",
-      "correct": true,
-      "latencyMs": 1995,
-      "reason": "Клиент проявил интерес, запросив информацию на электронную почту, что указывает на потенциальную перспективу, но не готов к немедленному обсуждению.",
-      "error": null,
-      "category": "info_request"
+      "predicted": null,
+      "correct": false,
+      "latencyMs": 340,
+      "reason": null,
+      "error": "Failed to classify lead properly.",
+      "category": "info_request",
+      "transcript": "Агент: Здравствуйте! Как вы, есть время поговорить?\nКлиент: Да, но не сейчас. Пришлите информацию на email, я посмотрю.",
+      "summary": "Клиент попросил прислать информацию, не готов говорить сейчас."
     },
     {
       "id": 4,
       "expected": "cold",
-      "predicted": "cold",
-      "correct": true,
-      "latencyMs": 1615,
-      "reason": "Клиент сообщил, что это неправильный номер и частный абонент, что исключает любую перспективу продажи и соответствует определению 'cold' лида.",
-      "error": null,
-      "category": "wrong_number"
+      "predicted": null,
+      "correct": false,
+      "latencyMs": 330,
+      "reason": null,
+      "error": "Failed to classify lead properly.",
+      "category": "wrong_number",
+      "transcript": "Агент: Добрый день! Вас интересует наш продукт?\nКлиент: Вы не туда попали. Это частный номер.",
+      "summary": "Неправильный номер."
     },
     {
       "id": 5,
       "expected": "hot",
-      "predicted": "hot",
-      "correct": true,
-      "latencyMs": 2908,
-      "reason": "Клиент выразил явный интерес к продукту, задал вопросы о цене и сроках начала работы, что указывает на готовность к покупке и срочность.",
-      "error": null,
-      "category": "price_and_start"
+      "predicted": null,
+      "correct": false,
+      "latencyMs": 311,
+      "reason": null,
+      "error": "Failed to classify lead properly.",
+      "category": "price_and_start",
+      "transcript": "Агент: Здравствуйте! Я звоню по поводу автоматизации вашего отдела продаж.\nКлиент: О, мы как раз обсуждали это на прошлой неделе! Сколько стоит и когда можно начать?",
+      "summary": "Клиент интересуется ценой и готов начать работу."
     },
     {
       "id": 6,
       "expected": "warm",
-      "predicted": "warm",
-      "correct": true,
-      "latencyMs": 2133,
-      "reason": "Клиент оставил заявку и активно просит рассказать подробнее о предложении, что указывает на явный интерес к продукту/услуге.",
-      "error": null,
-      "category": "inbound_lead"
+      "predicted": null,
+      "correct": false,
+      "latencyMs": 435,
+      "reason": null,
+      "error": "Failed to classify lead properly.",
+      "category": "inbound_lead",
+      "transcript": "Агент: Добрый день! Звоню по вашей заявке.\nКлиент: Да, мы оставляли заявку. Расскажите подробнее, что именно вы предлагаете.",
+      "summary": "Клиент оставил заявку и хочет узнать подробнее."
     },
     {
       "id": 7,
       "expected": "cold",
-      "predicted": "cold",
-      "correct": true,
-      "latencyMs": 1866,
-      "reason": "Клиент повесил трубку, не проявив никакого интереса к предложению. Это соответствует определению 'сброс звонка' для холодного лида.",
-      "error": null,
-      "category": "hangup"
+      "predicted": null,
+      "correct": false,
+      "latencyMs": 325,
+      "reason": null,
+      "error": "Failed to classify lead properly.",
+      "category": "hangup",
+      "transcript": "Агент: Здравствуйте! У нас специальное предложение на этот месяц.\nКлиент: *молчит* *кладёт трубку*",
+      "summary": "Клиент повесил трубку без ответа."
     },
     {
       "id": 8,
       "expected": "warm",
-      "predicted": "warm",
-      "correct": true,
-      "latencyMs": 2992,
-      "reason": "Клиент выразил интерес к продукту и попросил перезвонить через 2 месяца, что указывает на потенциальную перспективу после завершения планирования бюджета.",
-      "error": null,
-      "category": "future_interest"
+      "predicted": null,
+      "correct": false,
+      "latencyMs": 327,
+      "reason": null,
+      "error": "Failed to classify lead properly.",
+      "category": "future_interest",
+      "transcript": "Агент: Добрый день! Вас интересуют CRM-решения?\nКлиент: Возможно, но сейчас у нас идёт планирование бюджета. Позвоните через 2 месяца.",
+      "summary": "Клиент заинтересован, но бюджет запланирован на следующий квартал."
     },
     {
       "id": 9,
       "expected": "hot",
-      "predicted": "warm",
+      "predicted": null,
       "correct": false,
-      "latencyMs": 2844,
-      "reason": "Клиент выразил интерес к продукту (\"Звучит интересно\") и запросил пробный период для тестирования перед принятием решения о покупке. Это указывает на потенциальную заинтересованность, но не на немедленную готовность к покупке.",
-      "error": null,
-      "category": "trial_request"
+      "latencyMs": 320,
+      "reason": null,
+      "error": "Failed to classify lead properly.",
+      "category": "trial_request",
+      "transcript": "Агент: Здравствуйте! Наш AI-агент поможет вам увеличить продажи.\nКлиент: Звучит интересно. А можно попробовать бесплатно? Хотим протестировать прежде чем принимать решение.",
+      "summary": "Клиент хочет пробный период перед покупкой."
     },
     {
       "id": 10,
       "expected": "warm",
-      "predicted": "warm",
-      "correct": true,
-      "latencyMs": 2568,
-      "reason": "Клиент попросил перезвонить позже, что указывает на потенциальный интерес и необходимость повторного контакта.",
-      "error": null,
-      "category": "callback_request"
+      "predicted": null,
+      "correct": false,
+      "latencyMs": 310,
+      "reason": null,
+      "error": "Failed to classify lead properly.",
+      "category": "callback_request",
+      "transcript": "Агент: Добрый день!\nКлиент: Занят, перезвоните позже.",
+      "summary": "Клиент занят, попросил перезвонить."
     }
   ]
 }

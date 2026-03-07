@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import BenchmarkPage from './BenchmarkPage.jsx';
 import {
   PhoneCall, PhoneOutgoing, PhoneIncoming, Clock, Zap,
   AlertCircle, RefreshCw, LayoutDashboard, Phone, FileText,
   Settings, GitBranch, X, Play, Pause, ChevronRight,
-  Mic, TrendingUp, Users, Activity, Volume2, ChevronDown,
-  LogOut, Bell, Search, Target
+  Mic, TrendingUp, Users, Activity, ChevronDown,
+  LogOut, Bell, Search
 } from 'lucide-react';
 
 const API_BASE = '/api';
@@ -74,7 +73,6 @@ const NAV = [
   { id: 'calls', label: 'Звонки', icon: Phone },
   { id: 'democall', label: 'Demo Call', icon: Mic, href: '/call.html' },
   { id: 'scripts', label: 'Скрипты', icon: FileText },
-  { id: 'benchmark', label: 'Benchmark', icon: Target },
   { id: 'settings', label: 'Настройки', icon: Settings },
 ];
 
@@ -534,15 +532,6 @@ function DashboardPage({ stats, calls, loading, onSelectCall, token, fetchData }
     <div className="page">
       <div className="page-header">
         <h1 className="page-title">Dashboard</h1>
-        <div className="page-meta">
-          <div className="dot dot--green" />
-          <span>AI Active</span>
-          <span className="separator">·</span>
-          <span>RU/UZ</span>
-          <span className="separator">·</span>
-          <Volume2 size={14} />
-          <span>Female / Male</span>
-        </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
           <button
             className="btn-secondary"
@@ -588,7 +577,6 @@ function DashboardPage({ stats, calls, loading, onSelectCall, token, fetchData }
           value={stats?.hotCount ?? '—'}
           icon={Zap}
           gradient="orange"
-          trend="🔥 актив"
         />
       </div>
 
@@ -1553,7 +1541,6 @@ export default function App() {
             />
           )}
           {page === 'scripts' && <ScriptsPage token={token} showToast={showToast} />}
-          {page === 'benchmark' && <BenchmarkPage token={token} />}
           {page === 'settings' && (
             <SettingsPage token={token} showToast={showToast} />
           )}
