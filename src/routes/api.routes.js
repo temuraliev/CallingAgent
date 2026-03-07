@@ -9,6 +9,7 @@ import {
     getStatsSummary,
     createOutboundCall,
     getBenchmarkResults,
+    runBenchmark,
     simulateInboundWebhook,
     simulateOutboundCall,
     syncCall
@@ -43,6 +44,7 @@ router.post('/calls/:callId/sync-crm', requireAuth, syncCallToCrm);
 router.get('/stats', requireAuth, validate(getStatsSchema), getStatsSummary);
 router.post('/calls/outbound', requireAuth, validate(createOutboundCallSchema), createOutboundCall);
 router.get('/benchmark', requireAuth, getBenchmarkResults);
+router.post('/benchmark/run', requireAuth, runBenchmark);
 
 router.post('/test/inbound', requireAuth, simulateInboundWebhook);
 router.post('/test/outbound', requireAuth, simulateOutboundCall);

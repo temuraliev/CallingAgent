@@ -176,6 +176,8 @@ async function runExample(example) {
         reason,
         error,
         category: example.category,
+        transcript: (example.transcript || '').slice(0, 600),
+        summary: (example.summary || '').slice(0, 400),
     };
     results.push(result);
 
@@ -264,13 +266,13 @@ for (const exp of LABELS) {
 // Per-category breakdown
 const worstCats = Object.entries(categoryStats)
     .filter(([, s]) => s.total > 0)
-    .map(([cat, s]) => ({ cat, acc: s.correct / s.total, ...s }))
-    .sort((a, b) => a.acc - b.acc)
-    .slice(0, 5);
+    .map(([cat, s]) => ({ category: cat, accuracy: s.correct / s.total, correct: s.correct, total: s.total }))
+    .sort((a, b) => a.accuracy - b.accuracy)
+    .slice(0, 10);
 
 if (worstCats.length > 0) {
     console.log(`\n${BOLD}── Worst Categories ──${RESET}`);
-    for (const { cat, acc, correct: c, total } of worstCats) {
+    for (const { category: cat, accuracy: acc, correct: c, total } of worstCats) {
         const pct = (acc * 100).toFixed(0);
         const bar = '█'.repeat(Math.round(acc * 10)) + '░'.repeat(10 - Math.round(acc * 10));
         console.log(`  ${cat.padEnd(26)} ${bar} ${pct}% (${c}/${total})`);
@@ -285,6 +287,7 @@ const output = {
         total: examples.length,
         evaluated: evaluated.length,
         errors,
+        totalMs,
     },
     summary: {
         accuracy: parseFloat(accuracy.toFixed(2)),
@@ -295,6 +298,12 @@ const output = {
     perLabel,
     confusionMatrix: confMatrix,
     categoryStats,
+    worstCategories: worstCats.map(({ category, accuracy: acc, correct: c, total: t }) => ({
+        category,
+        accuracy: Math.round(acc * 10000) / 100,
+        correct: c,
+        total: t,
+    })),
     examples: results,
 };
 

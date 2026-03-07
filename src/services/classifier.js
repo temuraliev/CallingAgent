@@ -20,7 +20,7 @@ export async function classifyLead(transcript, summary) {
   if (!apiKey) throw new Error('GEMINI_API_KEY is required for lead classification');
 
   const ai = new GoogleGenAI({ apiKey });
-  const modelStr = process.env.GEMINI_MODEL || 'gemini-3-flash';
+  const modelStr = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
   const userContent = `Резюме: ${summary || 'Нет'}\n\nТранскрипт:\n${transcript || 'Транскрипт отсутствует'}`;
 
   try {
@@ -74,7 +74,7 @@ export async function translateToRussian(text) {
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const modelStr = process.env.GEMINI_MODEL || 'gemini-3-flash';
+    const modelStr = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 
     const response = await ai.models.generateContent({
       model: modelStr,

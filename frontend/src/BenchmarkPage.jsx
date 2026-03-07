@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
     Target, RefreshCw, AlertCircle, CheckCircle2, XCircle,
     TrendingUp, Clock, BarChart3, Zap, ChevronDown, ChevronUp,
-    Play
+    Play, ChevronRight
 } from 'lucide-react';
 
 const API_BASE = '/api';
@@ -10,6 +10,15 @@ const API_BASE = '/api';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function pct(v) { return typeof v === 'number' ? v.toFixed(1) + '%' : '—'; }
+
+function formatDuration(ms) {
+    if (ms == null || !Number.isFinite(ms)) return '—';
+    const sec = Math.floor(ms / 1000);
+    const min = Math.floor(sec / 60);
+    const s = sec % 60;
+    if (min > 0) return `${min} мин ${s} с`;
+    return `${s} с`;
+}
 
 function GaugeRing({ value, size = 80, label }) {
     const r = (size - 12) / 2;
@@ -131,9 +140,88 @@ function PerLabelTable({ perLabel }) {
     );
 }
 
+function WorstCategoriesBlock({ worstCategories }) {
+    if (!worstCategories?.length) return null;
+    return (
+        <div className="section">
+            <div className="section-header">
+                <h2 className="section-title">Слабые места</h2>
+                <span style={{ fontSize: 12, color: 'var(--text-2)' }}>Категории с наименьшей точностью</span>
+            </div>
+            <div className="bench-summary" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 12 }}>
+                {worstCategories.slice(0, 8).map(({ category, accuracy, correct, total }) => (
+                    <div key={category} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
+                            <span style={{ color: 'var(--text-2)' }}>{category}</span>
+                            <span style={{ color: 'var(--text)' }}>{correct}/{total} · {pct(accuracy)}</span>
+                        </div>
+                        <div style={{ height: 6, background: 'var(--bg-4)', borderRadius: 3, overflow: 'hidden' }}>
+                            <div
+                                style={{
+                                    width: `${accuracy}%`,
+                                    height: '100%',
+                                    background: accuracy >= 80 ? 'var(--green)' : accuracy >= 60 ? 'var(--amber)' : 'var(--rose)',
+                                    borderRadius: 3,
+                                    transition: 'width 0.4s ease',
+                                }}
+                            />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function CategoryStatsTable({ categoryStats }) {
+    if (!categoryStats || typeof categoryStats !== 'object') return null;
+    const entries = Object.entries(categoryStats)
+        .filter(([, s]) => s.total > 0)
+        .map(([cat, s]) => ({ category: cat, accuracy: (s.correct / s.total) * 100, correct: s.correct, total: s.total }))
+        .sort((a, b) => a.accuracy - b.accuracy);
+    if (entries.length === 0) return null;
+    return (
+        <div className="section">
+            <div className="section-header">
+                <h2 className="section-title">Точность по категориям</h2>
+            </div>
+            <div className="table-wrap">
+                <table className="data-table">
+                    <thead>
+                        <tr>
+                            <th>Категория</th>
+                            <th>Точность</th>
+                            <th>Правильно</th>
+                            <th>Всего</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {entries.map(({ category, accuracy, correct, total }) => (
+                            <tr key={category} className="table-row">
+                                <td style={{ fontSize: 12 }}>{category}</td>
+                                <td>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                        <div style={{ flex: 1, maxWidth: 120, height: 6, background: 'var(--bg-4)', borderRadius: 3, overflow: 'hidden' }}>
+                                            <div style={{ width: `${accuracy}%`, height: '100%', background: accuracy >= 80 ? 'var(--green)' : accuracy >= 60 ? 'var(--amber)' : 'var(--rose)', borderRadius: 3 }} />
+                                        </div>
+                                        <span className="td-muted">{pct(accuracy)}</span>
+                                    </div>
+                                </td>
+                                <td className="td-muted">{correct}</td>
+                                <td className="td-muted">{total}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}
+
 function ExamplesTable({ examples }) {
     const [show, setShow] = useState(false);
     const [filter, setFilter] = useState('all');
+    const [expandedId, setExpandedId] = useState(null);
 
     const filtered = examples.filter(e => {
         if (filter === 'wrong') return !e.correct && !e.error;
@@ -163,6 +251,7 @@ function ExamplesTable({ examples }) {
                     <table className="data-table">
                         <thead>
                             <tr>
+                                <th style={{ width: 32 }}></th>
                                 <th>#</th>
                                 <th>Категория</th>
                                 <th>Ожидалось</th>
@@ -173,26 +262,58 @@ function ExamplesTable({ examples }) {
                         </thead>
                         <tbody>
                             {filtered.map(ex => (
-                                <tr key={ex.id} className="table-row">
-                                    <td className="td-muted">{ex.id}</td>
-                                    <td className="td-muted" style={{ fontSize: 11 }}>{ex.category}</td>
-                                    <td><span className={`badge badge--${ex.expected}`}>{ex.expected}</span></td>
-                                    <td>
-                                        {ex.error ? (
-                                            <span style={{ fontSize: 11, color: 'var(--rose)' }}>ERROR</span>
-                                        ) : (
-                                            <span className={`badge badge--${ex.predicted}`} style={!ex.correct ? { boxShadow: '0 0 0 1px var(--rose)' } : {}}>
-                                                {ex.predicted}
-                                                {!ex.correct && <XCircle size={10} style={{ marginLeft: 3 }} />}
-                                                {ex.correct && <CheckCircle2 size={10} style={{ marginLeft: 3 }} />}
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="td-muted" style={{ fontSize: 11 }}>{ex.latencyMs}ms</td>
-                                    <td style={{ fontSize: 11, color: 'var(--text-2)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                        {ex.error || ex.reason || '—'}
-                                    </td>
-                                </tr>
+                                <React.Fragment key={ex.id}>
+                                    <tr
+                                        className="table-row"
+                                        onClick={() => setExpandedId(expandedId === ex.id ? null : ex.id)}
+                                        style={{ cursor: 'pointer' }}
+                                    >
+                                        <td style={{ padding: '8px 4px' }}>
+                                            <ChevronRight
+                                                size={14}
+                                                style={{
+                                                    color: 'var(--text-3)',
+                                                    transform: expandedId === ex.id ? 'rotate(90deg)' : 'none',
+                                                    transition: 'transform 0.15s',
+                                                }}
+                                            />
+                                        </td>
+                                        <td className="td-muted">{ex.id}</td>
+                                        <td className="td-muted" style={{ fontSize: 11 }}>{ex.category}</td>
+                                        <td><span className={`badge badge--${ex.expected}`}>{ex.expected}</span></td>
+                                        <td>
+                                            {ex.error ? (
+                                                <span style={{ fontSize: 11, color: 'var(--rose)' }}>ERROR</span>
+                                            ) : (
+                                                <span className={`badge badge--${ex.predicted}`} style={!ex.correct ? { boxShadow: '0 0 0 1px var(--rose)' } : {}}>
+                                                    {ex.predicted}
+                                                    {!ex.correct && <XCircle size={10} style={{ marginLeft: 3 }} />}
+                                                    {ex.correct && <CheckCircle2 size={10} style={{ marginLeft: 3 }} />}
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="td-muted" style={{ fontSize: 11 }}>{ex.latencyMs}ms</td>
+                                        <td style={{ fontSize: 11, color: 'var(--text-2)', maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {ex.error || ex.reason || '—'}
+                                        </td>
+                                    </tr>
+                                    {expandedId === ex.id && (
+                                        <tr key={`${ex.id}-detail`}>
+                                            <td colSpan={7} style={{ padding: 0, verticalAlign: 'top', borderBottom: '1px solid var(--border)' }}>
+                                                <div style={{ padding: '12px 14px', background: 'var(--bg-3)', fontSize: 12 }}>
+                                                    <div style={{ marginBottom: 8 }}>
+                                                        <strong style={{ color: 'var(--text-2)' }}>Резюме:</strong>
+                                                        <div style={{ color: 'var(--text)', marginTop: 4, whiteSpace: 'pre-wrap' }}>{ex.summary || '—'}</div>
+                                                    </div>
+                                                    <div>
+                                                        <strong style={{ color: 'var(--text-2)' }}>Транскрипт:</strong>
+                                                        <div style={{ color: 'var(--text)', marginTop: 4, whiteSpace: 'pre-wrap', maxHeight: 200, overflowY: 'auto' }}>{ex.transcript || '—'}</div>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </React.Fragment>
                             ))}
                         </tbody>
                     </table>
@@ -207,6 +328,7 @@ function ExamplesTable({ examples }) {
 export default function BenchmarkPage({ token }) {
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(false);
+    const [running, setRunning] = useState(false);
     const [error, setError] = useState('');
 
     const fetchBenchmark = async () => {
@@ -218,7 +340,7 @@ export default function BenchmarkPage({ token }) {
             });
             if (res.status === 404) {
                 const j = await res.json();
-                setError(j.error);
+                setError(j.error || 'Benchmark results not found');
                 setData(null);
                 return;
             }
@@ -228,6 +350,31 @@ export default function BenchmarkPage({ token }) {
             setError(e.message);
         } finally {
             setLoading(false);
+        }
+    };
+
+    const runBenchmark = async (quick) => {
+        setRunning(true);
+        setError('');
+        try {
+            const res = await fetch(`${API_BASE}/benchmark/run`, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ quick: !!quick }),
+            });
+            const out = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                setError(out.error || 'Ошибка запуска');
+                return;
+            }
+            await fetchBenchmark();
+        } catch (e) {
+            setError(e.message);
+        } finally {
+            setRunning(false);
         }
     };
 
@@ -242,12 +389,36 @@ export default function BenchmarkPage({ token }) {
             <div className="page-header">
                 <div>
                     <h1 className="page-title">Benchmark</h1>
-                    {runAt && <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 3 }}>Последний запуск: {runAt} · Модель: {data?.meta?.model}</div>}
+                    {runAt && (
+                        <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 3 }}>
+                            Последний запуск: {runAt} · Модель: {data?.meta?.model}
+                            {(data?.summary?.totalMs != null || data?.meta?.totalMs != null) && (
+                                <> · Время выполнения: {formatDuration(data?.summary?.totalMs ?? data?.meta?.totalMs)}</>
+                            )}
+                        </div>
+                    )}
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
                     <button className="btn-primary" onClick={fetchBenchmark} disabled={loading}>
                         <RefreshCw size={14} className={loading ? 'spin' : ''} />
                         Обновить
+                    </button>
+                    <button
+                        className="btn-secondary"
+                        onClick={() => runBenchmark(true)}
+                        disabled={running}
+                        title="10 примеров, около 2 минут"
+                    >
+                        <Play size={14} />
+                        {running ? 'Запуск…' : 'Быстрая оценка (10)'}
+                    </button>
+                    <button
+                        className="btn-primary"
+                        onClick={() => runBenchmark(false)}
+                        disabled={running}
+                        title="60 примеров, может занять 10+ минут"
+                    >
+                        {running ? 'Запуск…' : 'Полная оценка (60)'}
                     </button>
                 </div>
             </div>
@@ -257,10 +428,30 @@ export default function BenchmarkPage({ token }) {
                     <AlertCircle size={18} />
                     <div>
                         <div style={{ fontWeight: 600, marginBottom: 4 }}>Результаты не найдены</div>
-                        <div style={{ fontSize: 12, color: 'var(--text-2)' }}>Запустите оценку из корня проекта:</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-2)', marginBottom: 8 }}>Сначала запустите оценку (полный или быстрый прогон) из корня проекта или нажмите кнопку ниже:</div>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+                            <button
+                                className="btn-primary"
+                                onClick={() => runBenchmark(true)}
+                                disabled={running}
+                            >
+                                {running ? 'Запуск…' : 'Запустить быструю оценку (10 примеров)'}
+                            </button>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-2)' }}>Или из терминала (корень проекта):</div>
                         <code className="bench-code">npm run benchmark</code>
                         <div style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 6 }}>или быстрый тест (10 примеров):</div>
                         <code className="bench-code">npm run benchmark:quick</code>
+                    </div>
+                </div>
+            )}
+
+            {running && (
+                <div className="bench-notice" style={{ background: 'rgba(79, 110, 247, 0.08)', borderColor: 'rgba(79, 110, 247, 0.2)' }}>
+                    <RefreshCw size={18} className="spin" />
+                    <div>
+                        <div style={{ fontWeight: 600 }}>Идёт оценка…</div>
+                        <div style={{ fontSize: 12, color: 'var(--text-2)' }}>Подождите несколько минут. По завершении результаты обновятся автоматически.</div>
                     </div>
                 </div>
             )}
@@ -313,6 +504,9 @@ export default function BenchmarkPage({ token }) {
                         </div>
                         <ConfusionMatrix matrix={data.confusionMatrix} />
                     </div>
+
+                    <WorstCategoriesBlock worstCategories={data.worstCategories} />
+                    <CategoryStatsTable categoryStats={data.categoryStats} />
 
                     {/* Example details */}
                     <ExamplesTable examples={examples} />

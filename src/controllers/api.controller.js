@@ -1,5 +1,6 @@
 import { VapiClient } from '@vapi-ai/server-sdk';
 import { readFileSync } from 'fs';
+import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { loadSettings, saveSettings, syncToVapi } from '../services/settings.js';
@@ -322,6 +323,35 @@ export const getBenchmarkResults = (req, res) => {
     } catch (err) {
         res.status(404).json({ error: 'Benchmark results not found' });
     }
+};
+
+export const runBenchmark = (req, res) => {
+    const { quick, limit } = req.body || {};
+    const scriptPath = join(ROOT, 'scripts', 'evaluate.js');
+    const args = [scriptPath];
+    if (limit != null && Number.isFinite(Number(limit))) {
+        args.push(`--limit=${Number(limit)}`);
+    } else if (quick) {
+        args.push('--quick');
+    }
+    res.setTimeout(900000);
+    const child = spawn(process.execPath, args, {
+        cwd: ROOT,
+        env: { ...process.env },
+        stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stderr = '';
+    child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
+    child.on('close', (code) => {
+        if (code === 0) {
+            res.json({ success: true });
+        } else {
+            res.status(500).json({ error: stderr.slice(-1000) || `Benchmark exited with code ${code}` });
+        }
+    });
+    child.on('error', (err) => {
+        res.status(500).json({ error: err.message });
+    });
 };
 
 export const simulateInboundWebhook = async (req, res) => {
