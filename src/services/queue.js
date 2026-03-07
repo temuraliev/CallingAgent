@@ -44,10 +44,10 @@ function transcriptToText(artifact) {
     return messages
         .map((m) => {
             const role = m.role || (m.speaker === 'user' ? 'user' : 'assistant');
-            const msg = m.message || m.content || '';
+            const msg = m.message ?? m.content ?? m.text ?? '';
             return `[${role}]: ${msg}`;
         })
-        .join('\\n');
+        .join('\n');
 }
 
 export async function handleVapiJob(payload) {
@@ -55,7 +55,7 @@ export async function handleVapiJob(payload) {
 
     let duration = payload.duration;
     let transcript = payload.transcript;
-    let transcriptForStorage = payload.transcriptForStorage;
+    let transcriptForStorage = Array.isArray(payload.transcriptForStorage) ? payload.transcriptForStorage : [];
 
     const vapi = process.env.VAPI_API_KEY ? new VapiClient({ token: process.env.VAPI_API_KEY }) : null;
 
@@ -63,14 +63,25 @@ export async function handleVapiJob(payload) {
         for (let attempt = 0; attempt < 3; attempt++) {
             try {
                 if (attempt > 0) await new Promise(r => setTimeout(r, 5000));
-                const fullCall = await vapi.calls.get({ id: callId });
-                const msgs = fullCall.artifact?.messages || fullCall.artifact?.transcript || fullCall.messages || [];
+                const raw = await vapi.calls.get({ id: callId });
+                const fullCall = raw?.data ?? raw;
+                const artifact = fullCall?.artifact ?? {};
+                const msgs = artifact.messages || artifact.transcript || artifact.messagesOpenAIFormatted || fullCall.messages || [];
 
                 if (!transcript && msgs.length > 0) {
-                    transcript = msgs.map(m => `[${m.role || 'unknown'}]: ${m.message || m.content || m.text || ''}`).filter(Boolean).join('\n');
+                    transcript = msgs.map(m => `[${m.role || 'unknown'}]: ${m.message ?? m.content ?? m.text ?? ''}`).filter(Boolean).join('\n');
                 }
-                if (transcriptForStorage.length === 0 && msgs.length > 0) transcriptForStorage = msgs;
+                if (transcriptForStorage.length === 0 && msgs.length > 0) {
+                    transcriptForStorage = msgs.map((m) => ({
+                        role: m.role || 'unknown',
+                        message: m.message ?? m.content ?? m.text ?? '',
+                    })).filter((m) => m.message !== undefined && String(m.message).trim() !== '');
+                }
                 if (duration === 0 && typeof fullCall.duration === 'number') duration = fullCall.duration;
+                if (!payload.recordingUrl) {
+                    const recUrl = artifact.recording?.url || artifact.recording?.mono?.url || (typeof artifact.recording === 'string' ? artifact.recording : null) || fullCall.recordingUrl;
+                    if (recUrl) payload.recordingUrl = recUrl;
+                }
                 if (transcript && transcriptForStorage.length > 0 && duration > 0) break;
             } catch (err) {
                 console.error(`VAPI fetch failed (attempt ${attempt + 1}):`, err.message);
@@ -79,6 +90,8 @@ export async function handleVapiJob(payload) {
             }
         }
     }
+
+    const recordingUrl = payload.recordingUrl ?? null;
 
     let temperature = 'cold';
     let reason = '';

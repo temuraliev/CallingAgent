@@ -44,6 +44,12 @@ export const getStatsSchema = z.object({
 
 export const vapiWebhookSchema = z.object({
     body: z.object({
+        type: z.string().optional(),
+        call: z.any().optional(),
+        summary: z.any().optional(),
+        artifact: z.any().optional(),
+        transcript: z.any().optional(),
+        duration: z.any().optional(),
         message: z.object({
             type: z.string(),
             call: z.any().optional(),
@@ -51,7 +57,11 @@ export const vapiWebhookSchema = z.object({
             artifact: z.any().optional(),
             transcript: z.string().optional(),
             duration: z.number().optional()
-        }).passthrough()
+        }).passthrough().optional()
+    }).passthrough().transform((b) => {
+        if (b.message && b.message.type) return { message: b.message };
+        if (b.type === 'end-of-call-report') return { message: b };
+        return { message: b };
     })
 });
 

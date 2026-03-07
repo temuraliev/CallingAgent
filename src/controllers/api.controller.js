@@ -342,21 +342,25 @@ export const syncCall = async (req, res) => {
         if (is404) {
             // VAPI may not expose web/browser calls via API — save a stub so the call appears in Dashboard
             try {
+                const body = req.body || {};
+                const clientTranscript = Array.isArray(body.transcript) ? body.transcript : [];
+                const clientSummary = typeof body.summary === 'string' ? body.summary.trim() : '';
+                const clientDuration = typeof body.duration === 'number' && body.duration >= 0 ? body.duration : 0;
                 const stub = createStoredCall({
                     callId: id,
                     timestamp: new Date().toISOString(),
                     callType: 'inbound',
                     callerPhone: '',
                     callerName: 'Demo Call (браузер)',
-                    duration: 0,
+                    duration: clientDuration,
                     recordingUrl: null,
-                    transcript: [],
-                    summary: 'Звонок из браузера. Данные из VAPI по этому ID недоступны (возможно, не поддерживаются для веб-звонков).',
+                    transcript: clientTranscript.length > 0 ? clientTranscript : [],
+                    summary: clientSummary || 'Звонок из браузера. Данные из VAPI по этому ID недоступны (возможно, не поддерживаются для веб-звонков).',
                     leadTemperature: 'cold',
                     classificationReason: '',
                 });
                 await saveCall(stub);
-                console.log(`Saved stub call ${id} (VAPI 404).`);
+                console.log(`Saved stub call ${id} (VAPI 404)${clientTranscript.length ? ` with ${clientTranscript.length} transcript lines` : ''}.`);
                 return res.json({ success: true, message: 'Call saved (minimal record)' });
             } catch (saveErr) {
                 console.error('Stub save failed:', saveErr);

@@ -34,5 +34,74 @@
     "crmProvider": null,
     "createdAt": "2026-03-07T09:52:49.242Z",
     "updatedAt": "2026-03-07T09:52:49.242Z"
+  },
+  {
+    "id": 1772879197958,
+    "callId": "624fb7e5-8516-406a-a68d-a739712076d6",
+    "timestamp": "2026-03-07T10:26:37.955Z",
+    "callType": "inbound",
+    "callerPhone": "",
+    "callerName": "Demo Call (браузер)",
+    "duration": 0,
+    "recordingUrl": null,
+    "transcript": [
+      {
+        "role": "assistant",
+        "message": "Алло,"
+      },
+      {
+        "role": "assistant",
+        "message": "Алло, здравствуйте,"
+      },
+      {
+        "role": "assistant",
+        "message": "Алло, здравствуйте. Это ассистентка"
+      },
+      {
+        "role": "assistant",
+        "message": "Алло, здравствуйте. Это ассистент компании Лидеры"
+      },
+      {
+        "role": "assistant",
+        "message": "Звоню по поводу"
+      },
+      {
+        "role": "assistant",
+        "message": "Звоню по поводу недвижимости."
+      },
+      {
+        "role": "assistant",
+        "message": "Звоню по поводу недвижимости. Вам удобно сейчас"
+      },
+      {
+        "role": "assistant",
+        "message": "Звоню по поводу недвижимости. Вам удобно сейчас говорить?"
+      }
+    ],
+    "summary": "Звонок из браузера. Данные из VAPI по этому ID недоступны (возможно, не поддерживаются для веб-звонков).",
+    "leadTemperature": "cold",
+    "classificationReason": "",
+    "crmId": null,
+    "crmProvider": null,
+    "createdAt": "2026-03-07T10:26:37.958Z",
+    "updatedAt": "2026-03-07T10:26:37.958Z"
+  },
+  {
+    "id": 1772879372932,
+    "callId": "624fb7e5-8516-406a-a68d-a739712076d6",
+    "timestamp": "2026-03-07T10:29:32.929Z",
+    "callType": "inbound",
+    "callerPhone": "",
+    "callerName": "Demo Call (браузер)",
+    "duration": 0,
+    "recordingUrl": null,
+    "transcript": [],
+    "summary": "Звонок из браузера. Данные из VAPI по этому ID недоступны (возможно, не поддерживаются для веб-звонков).",
+    "leadTemperature": "cold",
+    "classificationReason": "",
+    "crmId": null,
+    "crmProvider": null,
+    "createdAt": "2026-03-07T10:29:32.932Z",
+    "updatedAt": "2026-03-07T10:29:32.932Z"
   }
 ]

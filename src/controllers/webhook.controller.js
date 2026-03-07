@@ -6,16 +6,26 @@ function transcriptToText(artifact) {
     return messages
         .map((m) => {
             const role = m.role || (m.speaker === 'user' ? 'user' : 'assistant');
-            const msg = m.message || m.content || '';
+            const msg = m.message ?? m.content ?? m.text ?? '';
             return `[${role}]: ${msg}`;
         })
-        .join('\\n');
+        .join('\n');
+}
+
+function getTranscriptForStorage(artifact) {
+    if (!artifact) return [];
+    const raw = artifact.messages || artifact.transcript || artifact.messagesOpenAIFormatted || [];
+    return raw.map((m) => ({
+        role: m.role || (m.speaker === 'user' ? 'user' : 'assistant'),
+        message: m.message ?? m.content ?? m.text ?? '',
+    })).filter((m) => m.message !== undefined && String(m.message).trim() !== '');
 }
 
 export const handleVapiWebhook = async (req, res) => {
-    res.sendStatus(200); // Respond immediately to avoid timeout
+    res.sendStatus(200);
 
-    const msg = req.body?.message;
+    // VAPI can send { message: { type, call, ... } } or the message at top level
+    const msg = req.body?.message || (req.body?.type === 'end-of-call-report' ? req.body : null);
     if (!msg || msg.type !== 'end-of-call-report') return;
 
     const call = msg.call || {};
@@ -38,18 +48,24 @@ export const handleVapiWebhook = async (req, res) => {
     }
 
     const callType = call.direction === 'outbound' || call.type === 'outbound' ? 'outbound' : 'inbound';
-    const recordingUrl = call.artifact?.recording?.url || call.artifact?.recording?.mono?.url || call.recordingUrl || null;
     const artifact = msg.artifact || call.artifact || {};
-    let transcript = transcriptToText(artifact) || (typeof msg.transcript === 'string' ? msg.transcript.trim() : '');
-    let transcriptForStorage = artifact.messages || artifact.transcript || [];
+    const recordingUrl =
+        artifact.recording?.url ||
+        artifact.recording?.mono?.url ||
+        (typeof artifact.recording === 'string' ? artifact.recording : null) ||
+        call.recordingUrl ||
+        null;
+    const transcript = transcriptToText(artifact) || (typeof msg.transcript === 'string' ? msg.transcript.trim() : '');
+    const transcriptForStorage = getTranscriptForStorage(artifact);
     const isValidUuid = callId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(callId));
+
+    console.log(`[webhook] end-of-call-report callId=${callId} transcriptLen=${transcript.length} recording=${!!recordingUrl} artifactKeys=${Object.keys(artifact || {}).join(',')}`);
 
     const payload = {
         msg, call, callId, summary, from, callerName, callType, recordingUrl,
         isValidUuid, duration, transcript, transcriptForStorage
     };
 
-    // Push to pg-boss queue
     try {
         if (!boss || process.env.BYPASS_QUEUE === 'true') {
             const { handleVapiJob } = await import('../services/queue.js');
