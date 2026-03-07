@@ -59,9 +59,16 @@ export const vapiWebhookSchema = z.object({
             duration: z.number().optional()
         }).passthrough().optional()
     }).passthrough().transform((b) => {
-        if (b.message && b.message.type) return { message: b.message };
-        if (b.type === 'end-of-call-report') return { message: b };
-        return { message: b };
+        const message = (b.message && b.message.type) ? b.message : (b.type === 'end-of-call-report' ? b : b);
+        return {
+            ...b,
+            message: {
+                ...message,
+                artifact: message.artifact ?? b.artifact,
+                summary: message.summary ?? b.summary,
+                call: message.call ?? b.call,
+            }
+        };
     })
 });
 

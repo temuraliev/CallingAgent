@@ -24,13 +24,15 @@ function getTranscriptForStorage(artifact) {
 export const handleVapiWebhook = async (req, res) => {
     res.sendStatus(200);
 
-    // VAPI can send { message: { type, call, ... } } or the message at top level
-    const msg = req.body?.message || (req.body?.type === 'end-of-call-report' ? req.body : null);
+    const body = req.body || {};
+    // VAPI can send { message: { type, call, artifact, summary } } or artifact/summary at top level
+    const msg = body.message || (body.type === 'end-of-call-report' ? body : null);
     if (!msg || msg.type !== 'end-of-call-report') return;
 
-    const call = msg.call || {};
+    const call = msg.call || body.call || {};
     const callId = call.id || call.callId || call.call?.id;
-    const summary = msg.summary || '';
+    const artifact = msg.artifact || call.artifact || body.artifact || {};
+    const summary = msg.summary ?? body.summary ?? '';
 
     const from =
         call.customer?.number ||
@@ -48,18 +50,19 @@ export const handleVapiWebhook = async (req, res) => {
     }
 
     const callType = call.direction === 'outbound' || call.type === 'outbound' ? 'outbound' : 'inbound';
-    const artifact = msg.artifact || call.artifact || {};
     const recordingUrl =
         artifact.recording?.url ||
         artifact.recording?.mono?.url ||
         (typeof artifact.recording === 'string' ? artifact.recording : null) ||
+        artifact.recordingUrl ||
+        artifact.stereoRecordingUrl ||
         call.recordingUrl ||
         null;
-    const transcript = transcriptToText(artifact) || (typeof msg.transcript === 'string' ? msg.transcript.trim() : '');
+    const transcript = transcriptToText(artifact) || (typeof msg.transcript === 'string' ? msg.transcript.trim() : '') || (typeof body.transcript === 'string' ? body.transcript.trim() : '');
     const transcriptForStorage = getTranscriptForStorage(artifact);
     const isValidUuid = callId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(callId));
 
-    console.log(`[webhook] end-of-call-report callId=${callId} transcriptLen=${transcript.length} recording=${!!recordingUrl} artifactKeys=${Object.keys(artifact || {}).join(',')}`);
+    console.log(`[webhook] end-of-call-report callId=${callId} transcriptLen=${transcript.length} summaryLen=${(summary || '').length} recording=${!!recordingUrl} bodyKeys=${Object.keys(body).join(',')}`);
 
     const payload = {
         msg, call, callId, summary, from, callerName, callType, recordingUrl,
@@ -81,6 +84,13 @@ export const handleVapiWebhook = async (req, res) => {
         }
     } catch (err) {
         console.error('Failed to process VAPI webhook:', err);
+        try {
+            const { handleVapiJob } = await import('../services/queue.js');
+            await handleVapiJob(payload);
+            console.log(`Processed webhook for call ${callId} directly after queue failure`);
+        } catch (fallbackErr) {
+            console.error('Fallback direct process failed:', fallbackErr);
+        }
     }
 };
 

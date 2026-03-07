@@ -51,18 +51,24 @@ function transcriptToText(artifact) {
 }
 
 export async function handleVapiJob(payload) {
-    const { msg, call, callId, summary, from, callerName, callType, isValidUuid } = payload;
+    const { msg, call, callId, from, callerName, callType, isValidUuid } = payload;
 
     let duration = payload.duration;
     let transcript = payload.transcript;
     let transcriptForStorage = Array.isArray(payload.transcriptForStorage) ? payload.transcriptForStorage : [];
+    let summary = payload.summary ?? '';
 
     const vapi = process.env.VAPI_API_KEY ? new VapiClient({ token: process.env.VAPI_API_KEY }) : null;
 
-    if (vapi && isValidUuid && (!transcript || duration === 0 || transcriptForStorage.length === 0)) {
-        for (let attempt = 0; attempt < 3; attempt++) {
+    const needsFetch = !transcript || !summary || duration === 0 || transcriptForStorage.length === 0 || !payload.recordingUrl;
+    if (vapi && isValidUuid && needsFetch) {
+        for (let attempt = 0; attempt < 4; attempt++) {
             try {
-                if (attempt > 0) await new Promise(r => setTimeout(r, 5000));
+                if (attempt === 0) {
+                    await new Promise(r => setTimeout(r, 3000));
+                } else {
+                    await new Promise(r => setTimeout(r, 5000));
+                }
                 const raw = await vapi.calls.get({ id: callId });
                 const fullCall = raw?.data ?? raw;
                 const artifact = fullCall?.artifact ?? {};
@@ -79,13 +85,17 @@ export async function handleVapiJob(payload) {
                 }
                 if (duration === 0 && typeof fullCall.duration === 'number') duration = fullCall.duration;
                 if (!payload.recordingUrl) {
-                    const recUrl = artifact.recording?.url || artifact.recording?.mono?.url || (typeof artifact.recording === 'string' ? artifact.recording : null) || fullCall.recordingUrl;
+                    const recUrl = artifact.recording?.url || artifact.recording?.mono?.url || (typeof artifact.recording === 'string' ? artifact.recording : null) || artifact.recordingUrl || artifact.stereoRecordingUrl || fullCall.recordingUrl;
                     if (recUrl) payload.recordingUrl = recUrl;
                 }
-                if (transcript && transcriptForStorage.length > 0 && duration > 0) break;
+                if (!summary && fullCall.summary) {
+                    summary = fullCall.summary;
+                    payload.summary = fullCall.summary;
+                }
+                if (transcript && transcriptForStorage.length > 0 && duration > 0 && summary && payload.recordingUrl) break;
             } catch (err) {
                 console.error(`VAPI fetch failed (attempt ${attempt + 1}):`, err.message);
-                if (attempt === 2) throw err; // Throw to trigger pg-boss retry
+                if (attempt === 3) throw err;
                 continue;
             }
         }
