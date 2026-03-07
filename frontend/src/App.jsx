@@ -593,13 +593,6 @@ function DashboardPage({ stats, calls, loading, onSelectCall, token, fetchData }
           gradient="orange"
           trend="🔥 актив"
         />
-        <MetricCard
-          title="Прогноз стоимости"
-          value={stats?.totalCalls ? `$${Math.round(stats.totalCalls * 0.08)}` : '—'}
-          icon={TrendingUp}
-          gradient="green"
-          sub="На основе длительности"
-        />
       </div>
 
       <CallsChart calls={calls} />
