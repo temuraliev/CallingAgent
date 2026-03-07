@@ -2,8 +2,10 @@ import { VapiClient } from '@vapi-ai/server-sdk';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { loadSettings, saveSettings } from '../services/settings.js';
-import { listCalls, getStats, getScript } from '../services/storage.js';
+import { loadSettings, saveSettings, syncToVapi } from '../services/settings.js';
+import { listCalls, getStats, getScript, getCallByCallId, updateCall } from '../services/storage.js';
+import { createLead, updateLeadStatus } from '../services/amo-client.js';
+import { createDeal, updateDealStage } from '../services/bitrix-client.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..', '..');
@@ -48,54 +50,103 @@ export const updateSettings = async (req, res) => {
         if (typeof systemPrompt === 'string') updates.systemPrompt = systemPrompt;
         if (typeof firstMessage === 'string') updates.firstMessage = firstMessage;
         const saved = await saveSettings(updates);
+        const result = await syncToVapi(saved);
+        res.json(result);
+    } catch (err) {
+        console.error('Save settings error:', err);
+        res.status(500).json({ error: err.message });
+    }
+};
 
-        const assistantId = process.env.VAPI_ASSISTANT_ID;
-        const vapiKey = process.env.VAPI_API_KEY;
+export const updateCallById = async (req, res) => {
+    try {
+        const { callId } = req.params;
+        const { leadTemperature, classificationReason } = req.body || {};
+        const call = await getCallByCallId(callId);
+        if (!call) return res.status(404).json({ error: 'Звонок не найден' });
 
-        if (vapiKey && assistantId && (saved.systemPrompt || saved.firstMessage)) {
+        const updates = {};
+        if (['cold', 'warm', 'hot'].includes(String(leadTemperature || '').toLowerCase())) {
+            updates.leadTemperature = String(leadTemperature).toLowerCase();
+        }
+        if (typeof classificationReason === 'string') updates.classificationReason = classificationReason;
+        if (typeof req.body.notes === 'string') updates.notes = req.body.notes;
+        if (Object.keys(updates).length === 0) return res.json(call);
+
+        await updateCall(callId, updates);
+
+        if (updates.leadTemperature && call.crmId && call.crmProvider) {
             try {
-                const getRes = await fetch(`https://api.vapi.ai/assistant/${assistantId}`, {
-                    headers: { Authorization: `Bearer ${vapiKey}` },
-                });
-                if (!getRes.ok) throw new Error(`GET assistant failed: ${getRes.status}`);
-                const current = await getRes.json();
-
-                const patch = {};
-                if (saved.firstMessage) patch.firstMessage = saved.firstMessage;
-                if (saved.systemPrompt && current.model) {
-                    patch.model = {
-                        provider: current.model.provider,
-                        model: current.model.model,
-                        messages: [{ role: 'system', content: saved.systemPrompt }],
-                    };
-                    if (current.model.temperature != null) patch.model.temperature = current.model.temperature;
-                    if (current.model.maxTokens != null) patch.model.maxTokens = current.model.maxTokens;
+                if (call.crmProvider === 'amo') {
+                    await updateLeadStatus(call.crmId, updates.leadTemperature);
+                } else if (call.crmProvider === 'bitrix') {
+                    await updateDealStage(call.crmId, updates.leadTemperature);
                 }
-
-                const patchRes = await fetch(`https://api.vapi.ai/assistant/${assistantId}`, {
-                    method: 'PATCH',
-                    headers: {
-                        Authorization: `Bearer ${vapiKey}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(patch),
+            } catch (crmErr) {
+                console.error('CRM update failed:', crmErr.message);
+                return res.status(200).json({
+                    ...call,
+                    ...updates,
+                    _crmError: crmErr.message,
+                    message: 'Классификация сохранена, обновление CRM не удалось',
                 });
-
-                if (!patchRes.ok) {
-                    const errBody = await patchRes.text();
-                    throw new Error(`PATCH failed ${patchRes.status}: ${errBody}`);
-                }
-
-                saved._vapiSynced = true;
-            } catch (vapiErr) {
-                console.error('Failed to sync settings to VAPI:', vapiErr.message);
-                saved._vapiError = vapiErr.message;
             }
         }
 
-        res.json(saved);
+        const updated = await getCallByCallId(callId);
+        res.json(updated);
     } catch (err) {
-        console.error('Save settings error:', err);
+        console.error('Update call error:', err);
+        res.status(500).json({ error: err.message });
+    }
+};
+
+/** Retry or perform CRM sync for a call (create or update lead/deal) */
+export const syncCallToCrm = async (req, res) => {
+    try {
+        const { callId } = req.params;
+        const call = await getCallByCallId(callId);
+        if (!call) return res.status(404).json({ error: 'Звонок не найден' });
+
+        const crmProvider = process.env.CRM_PROVIDER;
+        const temperature = call.leadTemperature || 'cold';
+
+        if (crmProvider === 'amo' && process.env.AMO_PIPELINE_ID) {
+            if (call.crmId && call.crmProvider === 'amo') {
+                await updateLeadStatus(call.crmId, temperature);
+            } else {
+                const { leadId } = await createLead({
+                    phone: call.callerPhone || 'unknown',
+                    name: call.callerName,
+                    temperature,
+                    duration: call.duration,
+                    recordingUrl: call.recordingUrl,
+                    summary: call.summary,
+                });
+                await updateCall(callId, { crmId: String(leadId), crmProvider: 'amo' });
+            }
+        } else if (crmProvider === 'bitrix' && process.env.BITRIX24_WEBHOOK_CODE) {
+            if (call.crmId && call.crmProvider === 'bitrix') {
+                await updateDealStage(call.crmId, temperature);
+            } else {
+                const { dealId } = await createDeal({
+                    phone: call.callerPhone || 'unknown',
+                    name: call.callerName,
+                    temperature,
+                    summary: call.summary,
+                    duration: call.duration,
+                    recordingUrl: call.recordingUrl,
+                });
+                await updateCall(callId, { crmId: String(dealId), crmProvider: 'bitrix' });
+            }
+        } else {
+            return res.status(400).json({ error: 'CRM не настроен (CRM_PROVIDER, Amo/Bitrix env)' });
+        }
+
+        const updated = await getCallByCallId(callId);
+        res.json(updated);
+    } catch (err) {
+        console.error('Sync call to CRM error:', err);
         res.status(500).json({ error: err.message });
     }
 };

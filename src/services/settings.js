@@ -73,3 +73,50 @@ export async function saveSettings(updates) {
 
   return merged;
 }
+
+/** Sync current settings to VAPI assistant (firstMessage + system prompt). Returns settings with _vapiSynced or _vapiError. */
+export async function syncToVapi(settingsObj) {
+  const assistantId = process.env.VAPI_ASSISTANT_ID;
+  const vapiKey = process.env.VAPI_API_KEY;
+  if (!vapiKey || !assistantId || (!settingsObj.systemPrompt && !settingsObj.firstMessage)) {
+    return settingsObj;
+  }
+  try {
+    const getRes = await fetch(`https://api.vapi.ai/assistant/${assistantId}`, {
+      headers: { Authorization: `Bearer ${vapiKey}` },
+    });
+    if (!getRes.ok) throw new Error(`GET assistant failed: ${getRes.status}`);
+    const current = await getRes.json();
+
+    const patch = {};
+    if (settingsObj.firstMessage) patch.firstMessage = settingsObj.firstMessage;
+    if (settingsObj.systemPrompt && current.model) {
+      patch.model = {
+        provider: current.model.provider,
+        model: current.model.model,
+        messages: [{ role: 'system', content: settingsObj.systemPrompt }],
+      };
+      if (current.model.temperature != null) patch.model.temperature = current.model.temperature;
+      if (current.model.maxTokens != null) patch.model.maxTokens = current.model.maxTokens;
+    }
+
+    const patchRes = await fetch(`https://api.vapi.ai/assistant/${assistantId}`, {
+      method: 'PATCH',
+      headers: {
+        Authorization: `Bearer ${vapiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(patch),
+    });
+
+    if (!patchRes.ok) {
+      const errBody = await patchRes.text();
+      throw new Error(`PATCH failed ${patchRes.status}: ${errBody}`);
+    }
+
+    return { ...settingsObj, _vapiSynced: true };
+  } catch (err) {
+    console.error('Failed to sync settings to VAPI:', err.message);
+    return { ...settingsObj, _vapiError: err.message };
+  }
+}

@@ -73,6 +73,17 @@ export async function saveCall(callData) {
   }
 }
 
+export async function getCallByCallId(callId) {
+  try {
+    const result = await db.select().from(calls).where(eq(calls.callId, callId)).limit(1);
+    return result[0] || null;
+  } catch (err) {
+    console.warn('DB getCallByCallId failed, falling back to JSON:', err.message);
+    const jsonCalls = await getJsonCalls();
+    return jsonCalls.find(c => c.callId === callId) || null;
+  }
+}
+
 export async function updateCall(callId, updates, _dateStr) {
   try {
     const dbUpdates = { updatedAt: new Date() };
@@ -81,6 +92,7 @@ export async function updateCall(callId, updates, _dateStr) {
     if (updates.leadTemperature !== undefined) dbUpdates.leadTemperature = updates.leadTemperature;
     if (updates.classificationReason !== undefined) dbUpdates.classificationReason = updates.classificationReason;
     if (updates.callerName !== undefined) dbUpdates.callerName = updates.callerName;
+    if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
     if (updates.interestedActivities !== undefined) dbUpdates.interestedActivities = updates.interestedActivities;
     if (updates.wantsCallback !== undefined) dbUpdates.wantsCallback = updates.wantsCallback;
 
@@ -90,7 +102,9 @@ export async function updateCall(callId, updates, _dateStr) {
     const jsonCalls = await getJsonCalls();
     const idx = jsonCalls.findIndex(c => c.callId === callId);
     if (idx !== -1) {
-      jsonCalls[idx] = { ...jsonCalls[idx], ...updates, updatedAt: new Date().toISOString() };
+      const next = { ...jsonCalls[idx], ...updates, updatedAt: new Date().toISOString() };
+      if (updates.notes !== undefined) next.notes = updates.notes;
+      jsonCalls[idx] = next;
       await saveJsonCalls(jsonCalls);
     }
   }
@@ -244,6 +258,31 @@ export async function getScript(id) {
     console.warn('DB Script Get failed, falling back to JSON:', err.message);
     const jsonScripts = await getJsonScripts();
     return jsonScripts.find(s => String(s.id) === String(id)) || null;
+  }
+}
+
+export async function updateScript(id, updates) {
+  const allowed = ['name', 'description', 'firstMessage', 'systemPrompt', 'isActive'];
+  const clean = {};
+  for (const k of allowed) {
+    if (updates[k] !== undefined) clean[k] = updates[k];
+  }
+  if (Object.keys(clean).length === 0) return getScript(id);
+
+  try {
+    const [updated] = await db.update(scripts)
+      .set({ ...clean, updatedAt: new Date() })
+      .where(eq(scripts.id, Number(id)))
+      .returning();
+    return updated || null;
+  } catch (err) {
+    console.warn('DB Script Update failed, falling back to JSON:', err.message);
+    const jsonScripts = await getJsonScripts();
+    const idx = jsonScripts.findIndex(s => String(s.id) === String(id));
+    if (idx === -1) return null;
+    jsonScripts[idx] = { ...jsonScripts[idx], ...clean, updatedAt: new Date().toISOString() };
+    await saveJsonScripts(jsonScripts);
+    return jsonScripts[idx];
   }
 }
 

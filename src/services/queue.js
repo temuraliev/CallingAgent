@@ -117,7 +117,10 @@ export async function handleVapiJob(payload) {
                 duration: storedCall.duration, recordingUrl: storedCall.recordingUrl, summary
             });
             await updateCall(storedCall.callId, { crmId: String(leadId), crmProvider: 'amo' });
-        } catch (err) { console.error('Amo CRM sync failed:', err.message); throw err }
+        } catch (err) {
+            console.error('Amo CRM sync failed:', err.message);
+            // Do not throw: call is saved; user can retry via "Отправить в CRM" in UI
+        }
     } else if (crmProvider === 'bitrix' && process.env.BITRIX24_WEBHOOK_CODE) {
         try {
             const { dealId } = await createDeal({
@@ -125,7 +128,10 @@ export async function handleVapiJob(payload) {
                 summary, duration: storedCall.duration, recordingUrl: storedCall.recordingUrl,
             });
             await updateCall(storedCall.callId, { crmId: String(dealId), crmProvider: 'bitrix' });
-        } catch (err) { console.error('Bitrix24 CRM sync failed:', err.message); throw err }
+        } catch (err) {
+            console.error('Bitrix24 CRM sync failed:', err.message);
+            // Do not throw: call is saved; user can retry via "Отправить в CRM" in UI
+        }
     }
 }
 

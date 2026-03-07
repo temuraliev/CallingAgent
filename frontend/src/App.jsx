@@ -25,6 +25,23 @@ function fmtDate(ts) {
     ' ' + d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 }
 
+// ─── Toast ────────────────────────────────────────────────────────────────────
+
+function Toast({ message, isError, onDismiss }) {
+  useEffect(() => {
+    const t = setTimeout(onDismiss, 4000);
+    return () => clearTimeout(t);
+  }, [onDismiss]);
+  return (
+    <div
+      className={`toast ${isError ? 'toast--error' : 'toast--success'}`}
+      role="alert"
+    >
+      {message}
+    </div>
+  );
+}
+
 // ─── Waveform ────────────────────────────────────────────────────────────────
 
 function Waveform({ active }) {
@@ -158,12 +175,27 @@ function TypeBadge({ type }) {
 
 // ─── Transcript Panel ─────────────────────────────────────────────────────────
 
-function TranscriptPanel({ call, onClose }) {
+function TranscriptPanel({ call, onClose, token, onUpdate, showToast }) {
   const [playing, setPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(call?.duration || 0);
+  const [leadTemperature, setLeadTemperature] = useState(call?.leadTemperature || 'cold');
+  const [classificationReason, setClassificationReason] = useState(call?.classificationReason || '');
+  const [saving, setSaving] = useState(false);
+  const [syncingCrm, setSyncingCrm] = useState(false);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [notes, setNotes] = useState(call?.notes || '');
+  const [savingNotes, setSavingNotes] = useState(false);
   const audioRef = useRef(null);
+
+  useEffect(() => {
+    if (call) {
+      setLeadTemperature(call.leadTemperature || 'cold');
+      setClassificationReason(call.classificationReason || '');
+      setNotes(call.notes || '');
+    }
+  }, [call?.callId]);
 
   // Auto-pause when call changes and reset state
   useEffect(() => {
@@ -175,6 +207,10 @@ function TranscriptPanel({ call, onClose }) {
       audioRef.current.currentTime = 0;
     }
   }, [call?.callId]);
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.playbackRate = playbackRate;
+  }, [playbackRate]);
 
   const togglePlay = () => {
     if (!audioRef.current || !call?.recordingUrl) return;
@@ -220,13 +256,18 @@ function TranscriptPanel({ call, onClose }) {
     audioRef.current.currentTime = newTime;
   };
 
-  const lines = call?.aiSummary
-    ? [{ speaker: 'AI Summary', time: '—', text: call.aiSummary }]
-    : [
-      { speaker: 'Агент', time: '0:05', text: 'Здравствуйте! Чем могу помочь?' },
-      { speaker: call?.callerName || 'Клиент', time: '0:12', text: 'Меня интересует ваш продукт.' },
-      { speaker: 'Агент', time: '0:25', text: 'Отлично, расскажу подробнее о наших предложениях.' },
-    ];
+  // Build transcript lines from call.transcript (array of { role, message?, content?, text?, time? })
+  const transcriptArr = Array.isArray(call?.transcript) ? call.transcript : [];
+  const lines = transcriptArr.map((m, i) => {
+    const text = m.message ?? m.content ?? m.text ?? '';
+    const role = (m.role || '').toLowerCase();
+    const speaker = role === 'user' ? (call?.callerName || 'Клиент') : 'Агент';
+    const timeStr = m.time != null ? fmt(Number(m.time)) : (i > 0 ? '' : '0:00');
+    return { speaker, time: timeStr, text };
+  });
+
+  const hasSummary = !!(call?.summary || call?.aiSummary);
+  const summaryText = call?.summary || call?.aiSummary || '';
 
   return (
     <div className="transcript-panel">
@@ -245,19 +286,34 @@ function TranscriptPanel({ call, onClose }) {
         <Waveform active={playing} />
       </div>
 
-      {/* Lines */}
-      <div className="transcript-lines">
-        {lines.map((l, i) => (
-          <div key={i} className="transcript-line">
-            <div className="transcript-line-header">
-              <div className="transcript-avatar">{l.speaker[0]}</div>
-              <span className="transcript-speaker">{l.speaker}</span>
-              <span className="transcript-time">{l.time}</span>
-            </div>
-            <p className="transcript-text">{l.text}</p>
-          </div>
-        ))}
+      {/* Transcript card */}
+      <div className="transcript-card">
+        <div className="transcript-card-title">Транскрипт</div>
+        <div className="transcript-lines">
+          {lines.length > 0 ? (
+            lines.map((l, i) => (
+              <div key={i} className="transcript-line">
+                <div className="transcript-line-header">
+                  <div className="transcript-avatar">{l.speaker[0]}</div>
+                  <span className="transcript-speaker">{l.speaker}</span>
+                  <span className="transcript-time">{l.time}</span>
+                </div>
+                <p className="transcript-text">{l.text}</p>
+              </div>
+            ))
+          ) : (
+            <div className="transcript-empty">Транскрипт пока недоступен</div>
+          )}
+        </div>
       </div>
+
+      {/* AI Summary card */}
+      {hasSummary && (
+        <div className="transcript-card transcript-card--summary">
+          <div className="transcript-card-title">Резюме</div>
+          <p className="transcript-summary-text">{summaryText}</p>
+        </div>
+      )}
 
       {/* Player */}
       <div className="audio-player">
@@ -276,7 +332,7 @@ function TranscriptPanel({ call, onClose }) {
             <div className="audio-controls">
               <span className="audio-time">{fmt(currentTime)}</span>
               <div className="audio-btns">
-                <button className="audio-skip" onClick={() => skip(-5)}>
+                <button className="audio-skip" onClick={() => skip(-5)} title="-5 сек">
                   <span>-5</span>
                 </button>
                 <button
@@ -285,11 +341,23 @@ function TranscriptPanel({ call, onClose }) {
                 >
                   {playing ? <Pause size={20} /> : <Play size={20} />}
                 </button>
-                <button className="audio-skip" onClick={() => skip(5)}>
+                <button className="audio-skip" onClick={() => skip(5)} title="+5 сек">
                   <span>+5</span>
                 </button>
               </div>
               <span className="audio-time">{fmt(duration)}</span>
+              <div className="audio-speed">
+                <select
+                  className="audio-speed-select"
+                  value={playbackRate}
+                  onChange={e => setPlaybackRate(Number(e.target.value))}
+                  title="Скорость"
+                >
+                  {[0.5, 1, 1.25, 1.5, 2].map(r => (
+                    <option key={r} value={r}>{r}x</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </>
         ) : (
@@ -298,11 +366,168 @@ function TranscriptPanel({ call, onClose }) {
           </div>
         )}
       </div>
+
+      {token && onUpdate && call?.callId && (
+        <div className="form-group" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+          <label style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, display: 'block' }}>Классификация лида</label>
+          <select
+            value={leadTemperature}
+            onChange={e => setLeadTemperature(e.target.value)}
+            style={{ width: '100%', padding: '8px 10px', marginBottom: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)' }}
+          >
+            <option value="cold">Холодный</option>
+            <option value="warm">Тёплый</option>
+            <option value="hot">Горячий</option>
+          </select>
+          <textarea
+            placeholder="Причина классификации..."
+            value={classificationReason}
+            onChange={e => setClassificationReason(e.target.value)}
+            rows={2}
+            style={{ width: '100%', padding: '8px 10px', marginBottom: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)', resize: 'vertical' }}
+          />
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={saving}
+            onClick={async () => {
+              setSaving(true);
+              try {
+                const res = await fetch(`${API_BASE}/calls/${encodeURIComponent(call.callId)}`, {
+                  method: 'PATCH',
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({ leadTemperature, classificationReason })
+                });
+                const data = await res.json();
+                if (res.ok) {
+                  onUpdate(data);
+                }
+              } finally {
+                setSaving(false);
+              }
+            }}
+          >
+            {saving ? 'Сохранение...' : 'Сохранить'}
+          </button>
+        </div>
+      )}
+
+      {token && onUpdate && call?.callId && (
+        <div className="form-group" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+          <label style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, display: 'block' }}>Заметки</label>
+          <textarea
+            placeholder="Добавить заметку к звонку..."
+            value={notes}
+            onChange={e => setNotes(e.target.value)}
+            rows={3}
+            style={{ width: '100%', padding: '8px 10px', marginBottom: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)', resize: 'vertical' }}
+          />
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={savingNotes}
+            onClick={async () => {
+              setSavingNotes(true);
+              try {
+                const res = await fetch(`${API_BASE}/calls/${encodeURIComponent(call.callId)}`, {
+                  method: 'PATCH',
+                  headers: {
+                    Authorization: `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({ notes })
+                });
+                const data = await res.json();
+                if (res.ok) onUpdate(data);
+              } finally {
+                setSavingNotes(false);
+              }
+            }}
+          >
+            {savingNotes ? 'Сохранение...' : 'Сохранить заметки'}
+          </button>
+        </div>
+      )}
+
+      {token && onUpdate && call?.callId && (
+        <div style={{ marginTop: 12 }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={syncingCrm}
+            onClick={async () => {
+              setSyncingCrm(true);
+              try {
+                const res = await fetch(`${API_BASE}/calls/${encodeURIComponent(call.callId)}/sync-crm`, {
+                  method: 'POST',
+                  headers: { Authorization: `Bearer ${token}` }
+                });
+                const data = await res.json();
+                if (res.ok) {
+                  onUpdate(data);
+                  showToast?.('Отправлено в CRM');
+                } else if (res.status === 400) (showToast || (m => alert(m)))(data.error || 'CRM не настроен', true);
+                else (showToast || (m => alert(m)))(data.error || 'Ошибка синхронизации с CRM', true);
+              } finally {
+                setSyncingCrm(false);
+              }
+            }}
+          >
+            {syncingCrm ? 'Отправка...' : 'Отправить в CRM'}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
 // ─── Dashboard Page ───────────────────────────────────────────────────────────
+
+function aggregateCallsByDay(calls, days = 14) {
+  const now = new Date();
+  const start = new Date(now);
+  start.setDate(start.getDate() - days);
+  start.setHours(0, 0, 0, 0);
+  const byDay = [];
+  for (let i = 0; i < days; i++) {
+    const d = new Date(start);
+    d.setDate(d.getDate() + i);
+    d.setHours(0, 0, 0, 0);
+    const dayStr = d.toISOString().slice(0, 10);
+    const next = new Date(d);
+    next.setDate(next.getDate() + 1);
+    const count = calls.filter(c => {
+      const t = new Date(c.timestamp);
+      return t >= d && t < next;
+    }).length;
+    byDay.push({ date: dayStr, label: d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' }), count });
+  }
+  return byDay;
+}
+
+function CallsChart({ calls }) {
+  const data = aggregateCallsByDay(calls || [], 14);
+  const maxCount = Math.max(1, ...data.map(d => d.count));
+  return (
+    <div className="chart-section">
+      <h2 className="section-title">Звонков по дням</h2>
+      <div className="chart-bars">
+        {data.map((d, i) => (
+          <div key={d.date} className="chart-bar-wrap" title={`${d.label}: ${d.count}`}>
+            <div
+              className="chart-bar"
+              style={{ height: `${(d.count / maxCount) * 100}%` }}
+            />
+            <span className="chart-bar-label">{d.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function DashboardPage({ stats, calls, loading, onSelectCall, token, fetchData }) {
   return (
@@ -350,32 +575,34 @@ function DashboardPage({ stats, calls, loading, onSelectCall, token, fetchData }
       <div className="metrics-grid">
         <MetricCard
           title="Всего звонков"
-          value={stats?.total ?? '—'}
+          value={stats?.totalCalls ?? '—'}
           icon={PhoneCall}
           gradient="blue"
           trend="+12% за неделю"
         />
         <MetricCard
           title="Общая длительность"
-          value={stats?.totalDuration ? `${Math.floor(stats.totalDuration / 3600)}ч ${Math.floor((stats.totalDuration % 3600) / 60)}м` : '—'}
+          value={stats?.totalDurationSeconds != null ? `${Math.floor(stats.totalDurationSeconds / 3600)}ч ${Math.floor((stats.totalDurationSeconds % 3600) / 60)}м` : '—'}
           icon={Clock}
           gradient="purple"
         />
         <MetricCard
           title="Горячие лиды"
-          value={stats?.byTemperature?.hot ?? '—'}
+          value={stats?.hotCount ?? '—'}
           icon={Zap}
           gradient="orange"
           trend="🔥 актив"
         />
         <MetricCard
           title="Прогноз стоимости"
-          value={stats?.total ? `$${Math.round(stats.total * 0.08)}` : '—'}
+          value={stats?.totalCalls ? `$${Math.round(stats.totalCalls * 0.08)}` : '—'}
           icon={TrendingUp}
           gradient="green"
           sub="На основе длительности"
         />
       </div>
+
+      <CallsChart calls={calls} />
 
       {/* Recent Calls */}
       <div className="section">
@@ -391,9 +618,11 @@ function DashboardPage({ stats, calls, loading, onSelectCall, token, fetchData }
 
 // ─── Calls Page ───────────────────────────────────────────────────────────────
 
-function CallsPage({ calls, loading, onSelectCall }) {
+function CallsPage({ calls, loading, onSelectCall, callFilters, setCallFilters, fetchData }) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('date');
+  const [sortDir, setSortDir] = useState('desc');
 
   const filtered = calls.filter(c => {
     const matchSearch = !search ||
@@ -402,6 +631,29 @@ function CallsPage({ calls, loading, onSelectCall }) {
     const matchFilter = filter === 'all' || c.callType === filter || c.leadTemperature === filter;
     return matchSearch && matchFilter;
   });
+
+  const sorted = React.useMemo(() => {
+    const a = [...filtered];
+    const dir = sortDir === 'asc' ? 1 : -1;
+    a.sort((x, y) => {
+      if (sortBy === 'date') return dir * (new Date(x.timestamp) - new Date(y.timestamp));
+      if (sortBy === 'duration') return dir * ((x.duration || 0) - (y.duration || 0));
+      if (sortBy === 'status') return dir * (String(x.leadTemperature || 'cold').localeCompare(y.leadTemperature || 'cold'));
+      return 0;
+    });
+    return a;
+  }, [filtered, sortBy, sortDir]);
+
+  const handleSort = (field) => {
+    if (sortBy === field) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortBy(field); setSortDir('desc'); }
+  };
+
+  const applyFilters = (next) => {
+    const nextFilters = { ...callFilters, ...next };
+    setCallFilters(nextFilters);
+    fetchData(nextFilters);
+  };
 
   return (
     <div className="page">
@@ -416,6 +668,41 @@ function CallsPage({ calls, loading, onSelectCall }) {
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
+          </div>
+        </div>
+      </div>
+
+      <div className="calls-filters">
+        <div className="calls-filter-group">
+          <span className="calls-filter-label">Период</span>
+          <div className="calls-filter-btns">
+            {[
+              { id: 'today', label: 'Сегодня' },
+              { id: 'week', label: 'Неделя' },
+              { id: 'month', label: 'Месяц' },
+            ].map(({ id, label }) => (
+              <button
+                key={id}
+                className={`filter-tab ${callFilters.period === id ? 'filter-tab--active' : ''}`}
+                onClick={() => applyFilters({ period: id })}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="calls-filter-group">
+          <span className="calls-filter-label">Температура лида</span>
+          <div className="calls-filter-btns calls-filter-btns--temp">
+            {['all', 'hot', 'warm', 'cold'].map(f => (
+              <button
+                key={f}
+                className={`filter-tab filter-tab--temp ${callFilters.temperature === f ? 'filter-tab--active' : ''} ${f !== 'all' ? `filter-tab--${f}` : ''}`}
+                onClick={() => applyFilters({ temperature: f })}
+              >
+                {f === 'all' ? 'Все' : f === 'hot' ? 'Hot' : f === 'warm' ? 'Warm' : 'Cold'}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -439,7 +726,7 @@ function CallsPage({ calls, loading, onSelectCall }) {
             <span>Загрузка...</span>
           </div>
         ) : (
-          <CallsTable calls={filtered} onSelectCall={onSelectCall} />
+          <CallsTable calls={sorted} onSelectCall={onSelectCall} sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
         )}
       </div>
     </div>
@@ -448,7 +735,7 @@ function CallsPage({ calls, loading, onSelectCall }) {
 
 // ─── Calls Table ─────────────────────────────────────────────────────────────
 
-function CallsTable({ calls, onSelectCall }) {
+function CallsTable({ calls, onSelectCall, sortBy, sortDir, onSort }) {
   if (!calls.length) {
     return (
       <div className="empty-state">
@@ -458,16 +745,28 @@ function CallsTable({ calls, onSelectCall }) {
     );
   }
 
+  const Th = ({ field, label }) => (
+    <th
+      className={onSort ? 'th-sortable' : ''}
+      onClick={onSort ? () => onSort(field) : undefined}
+    >
+      {label}
+      {onSort && sortBy === field && (
+        <span className="sort-indicator">{sortDir === 'asc' ? ' ↑' : ' ↓'}</span>
+      )}
+    </th>
+  );
+
   return (
     <div className="table-wrap">
       <table className="data-table">
         <thead>
           <tr>
-            <th>Дата</th>
+            <Th field="date" label="Дата" />
             <th>Тип</th>
             <th>Лид / Номер</th>
-            <th>Длительность</th>
-            <th>Статус</th>
+            <Th field="duration" label="Длительность" />
+            <Th field="status" label="Статус" />
             <th></th>
           </tr>
         </thead>
@@ -496,13 +795,120 @@ function CallsTable({ calls, onSelectCall }) {
   );
 }
 
-// ─── Scripts Page (placeholder) ───────────────────────────────────────────────
+// ─── Settings Page ─────────────────────────────────────────────────────────────
 
-function ScriptsPage({ token }) {
+function SettingsPage({ token, showToast }) {
+  const [systemPrompt, setSystemPrompt] = useState('');
+  const [firstMessage, setFirstMessage] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${API_BASE}/settings`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!res.ok) throw new Error('Failed to load settings');
+        const data = await res.json();
+        if (!cancelled) {
+          setSystemPrompt(data.systemPrompt || '');
+          setFirstMessage(data.firstMessage || '');
+        }
+      } catch (err) {
+        if (!cancelled && showToast) showToast('Не удалось загрузить настройки', true);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [token]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      const res = await fetch(`${API_BASE}/settings`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ systemPrompt, firstMessage })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        if (data._vapiError) {
+          showToast?.('Настройки сохранены, но синхронизация с VAPI не удалась: ' + data._vapiError, true);
+        } else {
+          showToast?.('Настройки сохранены и синхронизированы с VAPI');
+        }
+      } else {
+        showToast?.(data.error || 'Ошибка сохранения', true);
+      }
+    } catch (err) {
+      showToast?.('Не удалось сохранить настройки', true);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="page">
+        <div className="page-header"><h1 className="page-title">Настройки</h1></div>
+        <div className="empty-state"><RefreshCw size={24} className="spin" /><span>Загрузка...</span></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <h1 className="page-title">Настройки</h1>
+        <p className="text-slate-500 text-sm">Системный промпт и первое сообщение применяются ко всем звонкам и синхронизируются с VAPI.</p>
+      </div>
+      <form onSubmit={handleSubmit} className="outbound-form section">
+        <div className="form-group">
+          <label>Системный промпт (инструкция для AI)</label>
+          <textarea
+            value={systemPrompt}
+            onChange={e => setSystemPrompt(e.target.value)}
+            placeholder="Ты — опытный менеджер по продажам..."
+            rows={12}
+            style={{ fontFamily: 'inherit' }}
+          />
+        </div>
+        <div className="form-group">
+          <label>Первое сообщение (приветствие)</label>
+          <textarea
+            value={firstMessage}
+            onChange={e => setFirstMessage(e.target.value)}
+            placeholder="Здравствуйте! Меня зовут..."
+            rows={3}
+            style={{ fontFamily: 'inherit' }}
+          />
+        </div>
+        <div className="modal-footer" style={{ marginTop: 16 }}>
+          <button type="submit" className="btn-primary" disabled={saving}>
+            {saving ? 'Сохранение...' : 'Сохранить и синхронизировать с VAPI'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+// ─── Scripts Page ──────────────────────────────────────────────────────────────
+
+function ScriptsPage({ token, showToast }) {
   const [scripts, setScripts] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [newScript, setNewScript] = useState({ name: '', description: '', firstMessage: '', systemPrompt: '' });
+  const [editScript, setEditScript] = useState(null);
+  const [applyingId, setApplyingId] = useState(null);
 
   const fetchScripts = async () => {
     setLoading(true);
@@ -538,9 +944,46 @@ function ScriptsPage({ token }) {
         setShowModal(false);
         setNewScript({ name: '', description: '', firstMessage: '', systemPrompt: '' });
         fetchScripts();
+        showToast('Скрипт создан');
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Ошибка создания', true);
       }
     } catch (err) {
       console.error('Create script failed:', err);
+      showToast('Не удалось создать скрипт', true);
+    }
+  };
+
+  const handleUpdate = async (e) => {
+    e.preventDefault();
+    if (!editScript || !editScript.id) return;
+    try {
+      const res = await fetch(`${API_BASE}/scripts/${editScript.id}`, {
+        method: 'PATCH',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: editScript.name,
+          description: editScript.description,
+          firstMessage: editScript.firstMessage,
+          systemPrompt: editScript.systemPrompt,
+          isActive: editScript.isActive
+        })
+      });
+      if (res.ok) {
+        setEditScript(null);
+        fetchScripts();
+        showToast('Скрипт обновлён');
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Ошибка обновления', true);
+      }
+    } catch (err) {
+      console.error('Update script failed:', err);
+      showToast('Не удалось обновить скрипт', true);
     }
   };
 
@@ -552,8 +995,32 @@ function ScriptsPage({ token }) {
         headers: { Authorization: `Bearer ${token}` }
       });
       fetchScripts();
+      showToast('Скрипт удалён');
     } catch (err) {
       console.error('Delete script failed:', err);
+      showToast('Не удалось удалить скрипт', true);
+    }
+  };
+
+  const handleApply = async (id) => {
+    setApplyingId(id);
+    try {
+      const res = await fetch(`${API_BASE}/scripts/${id}/apply`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.vapiError ? 'Настройки сохранены; VAPI: ' + data.vapiError : (data.message || 'Скрипт применён'));
+        if (data.vapiError) showToast(data.vapiError, true);
+      } else {
+        showToast(data.error || 'Ошибка применения скрипта', true);
+      }
+    } catch (err) {
+      console.error('Apply script failed:', err);
+      showToast('Не удалось применить скрипт', true);
+    } finally {
+      setApplyingId(null);
     }
   };
 
@@ -596,8 +1063,18 @@ function ScriptsPage({ token }) {
                     <td className="td-muted">{s.firstMessage || '—'}</td>
                     <td>
                       <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                        <button
+                          className="row-action btn-primary"
+                          disabled={applyingId === s.id}
+                          onClick={() => handleApply(s.id)}
+                        >
+                          {applyingId === s.id ? '...' : 'Применить'}
+                        </button>
+                        <button className="row-action" onClick={() => setEditScript({ id: s.id, name: s.name, description: s.description || '', firstMessage: s.firstMessage || '', systemPrompt: s.systemPrompt || '', isActive: s.isActive !== false })}>
+                          Редактировать
+                        </button>
                         <button className="row-action" style={{ background: 'none', color: '#ef4444' }} onClick={() => handleDelete(s.id)}>
-                          <span>Удалить</span>
+                          Удалить
                         </button>
                       </div>
                     </td>
@@ -609,53 +1086,136 @@ function ScriptsPage({ token }) {
         )}
       </div>
 
+      {editScript && (
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setEditScript(null)}>
+          <div className="modal script-form-modal" style={{ maxWidth: '560px' }}>
+            <div className="modal-header">
+              <h2>Редактировать сценарий</h2>
+              <button type="button" className="modal-close" onClick={() => setEditScript(null)} aria-label="Закрыть"><X size={20} /></button>
+            </div>
+            <form onSubmit={handleUpdate} className="script-form">
+              <div className="modal-body">
+                <div className="form-section">
+                  <div className="form-section-title">Основное</div>
+                  <div className="form-group">
+                    <label htmlFor="edit-script-name">Название сценария</label>
+                    <input
+                      id="edit-script-name"
+                      type="text"
+                      required
+                      placeholder="Например: Холодный обзвон — турбазы"
+                      value={editScript.name}
+                      onChange={e => setEditScript({ ...editScript, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="edit-script-desc">Описание</label>
+                    <input
+                      id="edit-script-desc"
+                      type="text"
+                      placeholder="Кратко, о чём этот сценарий"
+                      value={editScript.description}
+                      onChange={e => setEditScript({ ...editScript, description: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="form-section">
+                  <div className="form-section-title">Поведение ассистента</div>
+                  <div className="form-group">
+                    <label htmlFor="edit-script-first">Первое сообщение</label>
+                    <textarea
+                      id="edit-script-first"
+                      placeholder="Фраза, с которой ассистент начинает разговор"
+                      value={editScript.firstMessage}
+                      onChange={e => setEditScript({ ...editScript, firstMessage: e.target.value })}
+                      rows={3}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="edit-script-prompt">Системный промпт</label>
+                    <textarea
+                      id="edit-script-prompt"
+                      required
+                      placeholder="Инструкция для AI: тон, цели, ограничения"
+                      value={editScript.systemPrompt}
+                      onChange={e => setEditScript({ ...editScript, systemPrompt: e.target.value })}
+                      rows={6}
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn-secondary" onClick={() => setEditScript(null)}>Отмена</button>
+                <button type="submit" className="btn-primary">Сохранить</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {showModal && (
-        <div className="modal-overlay">
-          <div className="modal" style={{ maxWidth: '600px' }}>
+        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowModal(false)}>
+          <div className="modal script-form-modal" style={{ maxWidth: '560px' }}>
             <div className="modal-header">
               <h2>Новый сценарий</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)}><X size={20} /></button>
+              <button type="button" className="modal-close" onClick={() => setShowModal(false)} aria-label="Закрыть"><X size={20} /></button>
             </div>
-            <form onSubmit={handleCreate} className="outbound-form">
-              <div className="form-group">
-                <label>Название сценария</label>
-                <input
-                  required
-                  placeholder="Напр: Холодный обзвон - Турбазы"
-                  value={newScript.name}
-                  onChange={e => setNewScript({ ...newScript, name: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Описание</label>
-                <input
-                  placeholder="О чем этот скрипт..."
-                  value={newScript.description}
-                  onChange={e => setNewScript({ ...newScript, description: e.target.value })}
-                />
-              </div>
-              <div className="form-group">
-                <label>Первое сообщение (AI)</label>
-                <textarea
-                  placeholder="Добрый день! Меня зовут Алекс, я звоню вам из..."
-                  value={newScript.firstMessage}
-                  onChange={e => setNewScript({ ...newScript, firstMessage: e.target.value })}
-                  rows={2}
-                />
-              </div>
-              <div className="form-group">
-                <label>Системный промпт (Инструкция для AI)</label>
-                <textarea
-                  required
-                  placeholder="Ты — опытный менеджер по продажам. Твоя цель — назначить встречу..."
-                  value={newScript.systemPrompt}
-                  onChange={e => setNewScript({ ...newScript, systemPrompt: e.target.value })}
-                  rows={6}
-                />
+            <form onSubmit={handleCreate} className="script-form">
+              <div className="modal-body">
+                <p className="form-intro">Заполните параметры сценария. Название и системный промпт обязательны — они задают поведение ассистента в звонках.</p>
+                <div className="form-section">
+                  <div className="form-section-title">Основное</div>
+                  <div className="form-group">
+                    <label htmlFor="new-script-name">Название сценария</label>
+                    <input
+                      id="new-script-name"
+                      type="text"
+                      required
+                      placeholder="Например: Холодный обзвон — турбазы"
+                      value={newScript.name}
+                      onChange={e => setNewScript({ ...newScript, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="new-script-desc">Описание</label>
+                    <input
+                      id="new-script-desc"
+                      type="text"
+                      placeholder="Кратко, о чём этот сценарий (для себя)"
+                      value={newScript.description}
+                      onChange={e => setNewScript({ ...newScript, description: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <div className="form-section">
+                  <div className="form-section-title">Поведение ассистента</div>
+                  <div className="form-group">
+                    <label htmlFor="new-script-first">Первое сообщение</label>
+                    <textarea
+                      id="new-script-first"
+                      placeholder="Фраза, с которой ассистент начинает разговор. Например: Добрый день! Меня зовут Алекс, я звоню вам из компании..."
+                      value={newScript.firstMessage}
+                      onChange={e => setNewScript({ ...newScript, firstMessage: e.target.value })}
+                      rows={3}
+                    />
+                    <p className="form-hint">Озвучивается в начале звонка.</p>
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="new-script-prompt">Системный промпт</label>
+                    <textarea
+                      id="new-script-prompt"
+                      required
+                      placeholder="Ты — опытный менеджер по продажам. Твоя цель — вежливо представиться, уточнить потребность клиента и при возможности назначить встречу или перезвон."
+                      value={newScript.systemPrompt}
+                      onChange={e => setNewScript({ ...newScript, systemPrompt: e.target.value })}
+                      rows={6}
+                    />
+                    <p className="form-hint">Инструкция для AI: тон, цели, что можно и нельзя говорить.</p>
+                  </div>
+                </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Отмена</button>
-                <button type="submit" className="btn-primary">Создать скрипт</button>
+                <button type="submit" className="btn-primary">Создать сценарий</button>
               </div>
             </form>
           </div>
@@ -817,7 +1377,7 @@ function OutboundCallModal({ token, onClose, onSuccess }) {
             onChange={e => setScriptId(e.target.value)}
             style={{ appearance: 'auto', paddingRight: '10px' }}
           >
-            <option value="">Без сценария (настройки по умолчанию)</option>
+            <option value="">Текущие настройки</option>
             {scripts.map(s => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
@@ -861,6 +1421,15 @@ export default function App() {
   const [page, setPage] = useState('dashboard');
   const [selectedCall, setSelectedCall] = useState(null);
   const [showCallModal, setShowCallModal] = useState(false);
+  const [callFilters, setCallFilters] = useState({ period: 'week', temperature: 'all' });
+  const [toast, setToast] = useState(null);
+  const toastRef = useRef(null);
+
+  const showToast = (message, isError = false) => {
+    if (toastRef.current) clearTimeout(toastRef.current);
+    setToast({ message, isError });
+    toastRef.current = setTimeout(() => setToast(null), 4000);
+  };
 
   const handleLogin = e => {
     e.preventDefault();
@@ -876,14 +1445,41 @@ export default function App() {
     setStats(null);
   };
 
-  const fetchData = async () => {
+  function buildCallsQuery(filters) {
+    const f = filters ?? callFilters;
+    const params = new URLSearchParams();
+    params.set('limit', '50');
+    const now = new Date();
+    if (f.period === 'today') {
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      params.set('from', d.toISOString().slice(0, 10));
+      params.set('to', d.toISOString().slice(0, 10));
+    } else if (f.period === 'week') {
+      const d = new Date(now);
+      d.setDate(d.getDate() - 7);
+      params.set('from', d.toISOString().slice(0, 10));
+      params.set('to', now.toISOString().slice(0, 10));
+    } else if (f.period === 'month') {
+      const d = new Date(now);
+      d.setMonth(d.getMonth() - 1);
+      params.set('from', d.toISOString().slice(0, 10));
+      params.set('to', now.toISOString().slice(0, 10));
+    }
+    if (f.temperature && f.temperature !== 'all') {
+      params.set('status', f.temperature);
+    }
+    return params.toString();
+  }
+
+  const fetchData = async (filterOverride) => {
     if (!token) return;
     setLoading(true);
     setError('');
     try {
       const headers = { 'Authorization': `Bearer ${token}` };
+      const query = buildCallsQuery(filterOverride ?? undefined);
       const [callsRes, statsRes] = await Promise.all([
-        fetch(`${API_BASE}/calls?limit=50`, { headers }),
+        fetch(`${API_BASE}/calls?${query}`, { headers }),
         fetch(`${API_BASE}/stats`, { headers })
       ]);
       if (callsRes.status === 401 || statsRes.status === 401) { logout(); return; }
@@ -899,7 +1495,6 @@ export default function App() {
 
   useEffect(() => { if (isAuthenticated) fetchData(); }, [isAuthenticated]);
 
-  // auto-refresh
   useEffect(() => {
     if (!isAuthenticated) return;
     const id = setInterval(fetchData, 30000);
@@ -958,15 +1553,19 @@ export default function App() {
             />
           )}
           {page === 'calls' && (
-            <CallsPage calls={calls} loading={loading} onSelectCall={setSelectedCall} />
+            <CallsPage
+              calls={calls}
+              loading={loading}
+              onSelectCall={setSelectedCall}
+              callFilters={callFilters}
+              setCallFilters={setCallFilters}
+              fetchData={fetchData}
+            />
           )}
-          {page === 'scripts' && <ScriptsPage token={token} />}
+          {page === 'scripts' && <ScriptsPage token={token} showToast={showToast} />}
           {page === 'benchmark' && <BenchmarkPage token={token} />}
           {page === 'settings' && (
-            <div className="page">
-              <div className="page-header"><h1 className="page-title">Настройки</h1></div>
-              <p className="text-slate-500">Настройки будут добавлены позже.</p>
-            </div>
+            <SettingsPage token={token} showToast={showToast} />
           )}
         </div>
       </main>
@@ -974,7 +1573,13 @@ export default function App() {
       {/* Transcript side panel */}
       {selectedCall && (
         <div className="transcript-overlay">
-          <TranscriptPanel call={selectedCall} onClose={() => setSelectedCall(null)} />
+          <TranscriptPanel
+            call={selectedCall}
+            onClose={() => setSelectedCall(null)}
+            token={token}
+            onUpdate={(updated) => { setSelectedCall(updated); fetchData(); }}
+            showToast={showToast}
+          />
         </div>
       )}
       {/* Outbound Call Modal */}
@@ -986,6 +1591,13 @@ export default function App() {
             setShowCallModal(false);
             fetchData();
           }}
+        />
+      )}
+      {toast && (
+        <Toast
+          message={toast.message}
+          isError={toast.isError}
+          onDismiss={() => setToast(null)}
         />
       )}
     </div>

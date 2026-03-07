@@ -8,6 +8,13 @@
       "when": 1772524211767,
       "tag": "0000_condemned_blue_blade",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1772869446385,
+      "tag": "0001_fine_alice",
+      "breakpoints": true
     }
   ]
 }

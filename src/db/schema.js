@@ -15,6 +15,7 @@ export const calls = pgTable('calls', {
   classificationReason: text('classification_reason'),
   crmId: varchar('crm_id', { length: 255 }),
   crmProvider: varchar('crm_provider', { length: 50 }),
+  notes: text('notes'),
   interestedActivities: jsonb('interested_activities').default([]),
   wantsCallback: boolean('wants_callback').default(false),
   amoLeadId: varchar('amo_lead_id', { length: 255 }),
