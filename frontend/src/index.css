@@ -332,9 +332,22 @@ input {
   gap: 16px;
 }
 
+.metrics-grid--three {
+  grid-template-columns: repeat(3, 1fr);
+}
+
 @media (max-width: 1100px) {
   .metrics-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .metrics-grid--three {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .metrics-grid--three {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1460,6 +1473,9 @@ input {
 }
 
 .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 16px;
   border-radius: var(--radius-sm);
   font-size: 13px;

@@ -545,8 +545,7 @@ function DashboardPage({ stats, calls, loading, onSelectCall, token, fetchData }
         </div>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
           <button
-            className="btn btn-primary"
-            style={{ padding: '6px 12px', fontSize: '13px', borderRadius: '4px', background: 'var(--bg-3)', color: 'var(--text-1)', border: '1px solid var(--border)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+            className="btn-secondary"
             onClick={async () => {
               try {
                 const res = await fetch(`${API_BASE}/test/inbound`, {
@@ -571,14 +570,12 @@ function DashboardPage({ stats, calls, loading, onSelectCall, token, fetchData }
         </div>
       </div>
 
-      {/* Metrics */}
-      <div className="metrics-grid">
+      <div className="metrics-grid metrics-grid--three">
         <MetricCard
           title="Всего звонков"
           value={stats?.totalCalls ?? '—'}
           icon={PhoneCall}
           gradient="blue"
-          trend="+12% за неделю"
         />
         <MetricCard
           title="Общая длительность"
