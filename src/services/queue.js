@@ -51,7 +51,7 @@ function transcriptToText(artifact) {
 }
 
 export async function handleVapiJob(payload) {
-    const { msg, call, callId, summary, from, callerName, callType, recordingUrl, isValidUuid } = payload;
+    const { msg, call, callId, summary, from, callerName, callType, isValidUuid } = payload;
 
     let duration = payload.duration;
     let transcript = payload.transcript;
