@@ -267,21 +267,78 @@ function TranscriptPanel({ call, onClose, token, onUpdate, showToast }) {
   const hasSummary = !!(call?.summary || call?.aiSummary);
   const summaryText = call?.summary || call?.aiSummary || '';
 
+  const callDate = call?.timestamp ? fmtDate(call.timestamp) : '';
+
   return (
     <div className="transcript-panel">
       <div className="transcript-header">
-        <div>
-          <div className="transcript-title">Транскрипт звонка</div>
-          <div className="transcript-sub">
-            {call?.callerPhone} · {call?.callerName || 'Неизвестный'}
+        <div className="transcript-header-main">
+          <h2 className="transcript-title">Прослушивание звонка</h2>
+          <div className="transcript-meta">
+            <span className="transcript-contact">{call?.callerName || 'Неизвестный'}</span>
+            {call?.callerPhone && <span className="transcript-phone">{call.callerPhone}</span>}
+            {callDate && <span className="transcript-date">{callDate}</span>}
+          </div>
+          <div className="transcript-badges">
+            <TypeBadge type={call?.callType || 'inbound'} />
+            <TempBadge temp={leadTemperature} />
+            {call?.duration != null && (
+              <span className="transcript-duration-badge">
+                <Clock size={12} />
+                {fmt(call.duration)}
+              </span>
+            )}
           </div>
         </div>
-        <button className="icon-btn" onClick={onClose}><X size={18} /></button>
+        <button className="transcript-close-btn" onClick={onClose} aria-label="Закрыть">
+          <X size={20} />
+        </button>
       </div>
 
-      {/* Waveform */}
-      <div className="transcript-waveform-box">
-        <Waveform active={playing} />
+      {/* Player block */}
+      <div className="transcript-player-block">
+        <div className="transcript-waveform-box">
+          <Waveform active={playing} />
+        </div>
+        <div className="audio-player">
+          {call?.recordingUrl ? (
+            <>
+              <audio
+                ref={audioRef}
+                src={call.recordingUrl}
+                onTimeUpdate={handleTimeUpdate}
+                onLoadedMetadata={handleLoadedMetadata}
+                onEnded={() => setPlaying(false)}
+              />
+              <div className="audio-progress-bar" onClick={handleSeek} style={{ cursor: 'pointer' }}>
+                <div className="audio-progress-fill" style={{ width: `${progress}%` }} />
+              </div>
+              <div className="audio-controls">
+                <span className="audio-time">{fmt(currentTime)}</span>
+                <div className="audio-btns">
+                  <button className="audio-skip" onClick={() => skip(-5)} title="-5 сек"><span>-5</span></button>
+                  <button className="audio-play" onClick={togglePlay}>
+                    {playing ? <Pause size={22} /> : <Play size={22} />}
+                  </button>
+                  <button className="audio-skip" onClick={() => skip(5)} title="+5 сек"><span>+5</span></button>
+                </div>
+                <span className="audio-time">{fmt(duration)}</span>
+                <select
+                  className="audio-speed-select"
+                  value={playbackRate}
+                  onChange={e => setPlaybackRate(Number(e.target.value))}
+                  title="Скорость"
+                >
+                  {[0.5, 1, 1.25, 1.5, 2].map(r => (
+                    <option key={r} value={r}>{r}×</option>
+                  ))}
+                </select>
+              </div>
+            </>
+          ) : (
+            <div className="audio-unavailable">Аудиозапись недоступна</div>
+          )}
+        </div>
       </div>
 
       {/* Transcript card */}
@@ -292,7 +349,7 @@ function TranscriptPanel({ call, onClose, token, onUpdate, showToast }) {
             lines.map((l, i) => (
               <div key={i} className="transcript-line">
                 <div className="transcript-line-header">
-                  <div className="transcript-avatar">{l.speaker[0]}</div>
+                  <div className={`transcript-avatar transcript-avatar--${(l.speaker === 'Агент' ? 'agent' : 'client')}`}>{l.speaker[0]}</div>
                   <span className="transcript-speaker">{l.speaker}</span>
                   <span className="transcript-time">{l.time}</span>
                 </div>
@@ -313,150 +370,99 @@ function TranscriptPanel({ call, onClose, token, onUpdate, showToast }) {
         </div>
       )}
 
-      {/* Player */}
-      <div className="audio-player">
-        {call?.recordingUrl ? (
-          <>
-            <audio
-              ref={audioRef}
-              src={call.recordingUrl}
-              onTimeUpdate={handleTimeUpdate}
-              onLoadedMetadata={handleLoadedMetadata}
-              onEnded={() => setPlaying(false)}
-            />
-            <div className="audio-progress-bar" onClick={handleSeek} style={{ cursor: 'pointer' }}>
-              <div className="audio-progress-fill" style={{ width: `${progress}%` }} />
-            </div>
-            <div className="audio-controls">
-              <span className="audio-time">{fmt(currentTime)}</span>
-              <div className="audio-btns">
-                <button className="audio-skip" onClick={() => skip(-5)} title="-5 сек">
-                  <span>-5</span>
-                </button>
-                <button
-                  className="audio-play"
-                  onClick={togglePlay}
-                >
-                  {playing ? <Pause size={20} /> : <Play size={20} />}
-                </button>
-                <button className="audio-skip" onClick={() => skip(5)} title="+5 сек">
-                  <span>+5</span>
-                </button>
-              </div>
-              <span className="audio-time">{fmt(duration)}</span>
-              <div className="audio-speed">
-                <select
-                  className="audio-speed-select"
-                  value={playbackRate}
-                  onChange={e => setPlaybackRate(Number(e.target.value))}
-                  title="Скорость"
-                >
-                  {[0.5, 1, 1.25, 1.5, 2].map(r => (
-                    <option key={r} value={r}>{r}x</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </>
-        ) : (
-          <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--text-3)', padding: '10px 0' }}>
-            Аудиозапись недоступна
+      {token && onUpdate && call?.callId && (
+        <div className="transcript-actions">
+          <div className="transcript-actions-title">Классификация и заметки</div>
+          <div className="transcript-form-row">
+            <label className="transcript-label">Температура лида</label>
+            <select
+              className="transcript-input"
+              value={leadTemperature}
+              onChange={e => setLeadTemperature(e.target.value)}
+            >
+              <option value="cold">Холодный</option>
+              <option value="warm">Тёплый</option>
+              <option value="hot">Горячий</option>
+            </select>
           </div>
-        )}
-      </div>
-
-      {token && onUpdate && call?.callId && (
-        <div className="form-group" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-          <label style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, display: 'block' }}>Классификация лида</label>
-          <select
-            value={leadTemperature}
-            onChange={e => setLeadTemperature(e.target.value)}
-            style={{ width: '100%', padding: '8px 10px', marginBottom: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)' }}
-          >
-            <option value="cold">Холодный</option>
-            <option value="warm">Тёплый</option>
-            <option value="hot">Горячий</option>
-          </select>
-          <textarea
-            placeholder="Причина классификации..."
-            value={classificationReason}
-            onChange={e => setClassificationReason(e.target.value)}
-            rows={2}
-            style={{ width: '100%', padding: '8px 10px', marginBottom: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)', resize: 'vertical' }}
-          />
-          <button
-            type="button"
-            className="btn-primary"
-            disabled={saving}
-            onClick={async () => {
-              setSaving(true);
-              try {
-                const res = await fetch(`${API_BASE}/calls/${encodeURIComponent(call.callId)}`, {
-                  method: 'PATCH',
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({ leadTemperature, classificationReason })
-                });
-                const data = await res.json();
-                if (res.ok) {
-                  onUpdate(data);
+          <div className="transcript-form-row">
+            <label className="transcript-label">Причина классификации</label>
+            <textarea
+              className="transcript-input transcript-textarea"
+              placeholder="Причина классификации..."
+              value={classificationReason}
+              onChange={e => setClassificationReason(e.target.value)}
+              rows={2}
+            />
+          </div>
+          <div className="transcript-form-btns">
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={saving}
+              onClick={async () => {
+                setSaving(true);
+                try {
+                  const res = await fetch(`${API_BASE}/calls/${encodeURIComponent(call.callId)}`, {
+                    method: 'PATCH',
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ leadTemperature, classificationReason })
+                  });
+                  const data = await res.json();
+                  if (res.ok) onUpdate(data);
+                } finally {
+                  setSaving(false);
                 }
-              } finally {
-                setSaving(false);
-              }
-            }}
-          >
-            {saving ? 'Сохранение...' : 'Сохранить'}
-          </button>
-        </div>
-      )}
-
-      {token && onUpdate && call?.callId && (
-        <div className="form-group" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
-          <label style={{ fontSize: 12, fontWeight: 600, marginBottom: 6, display: 'block' }}>Заметки</label>
-          <textarea
-            placeholder="Добавить заметку к звонку..."
-            value={notes}
-            onChange={e => setNotes(e.target.value)}
-            rows={3}
-            style={{ width: '100%', padding: '8px 10px', marginBottom: 8, borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-2)', resize: 'vertical' }}
-          />
-          <button
-            type="button"
-            className="btn-secondary"
-            disabled={savingNotes}
-            onClick={async () => {
-              setSavingNotes(true);
-              try {
-                const res = await fetch(`${API_BASE}/calls/${encodeURIComponent(call.callId)}`, {
-                  method: 'PATCH',
-                  headers: {
-                    Authorization: `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify({ notes })
-                });
-                const data = await res.json();
-                if (res.ok) onUpdate(data);
-              } finally {
-                setSavingNotes(false);
-              }
-            }}
-          >
-            {savingNotes ? 'Сохранение...' : 'Сохранить заметки'}
-          </button>
-        </div>
-      )}
-
-      {token && onUpdate && call?.callId && (
-        <div style={{ marginTop: 12 }}>
-          <button
-            type="button"
-            className="btn-secondary"
-            disabled={syncingCrm}
-            onClick={async () => {
+              }}
+            >
+              {saving ? 'Сохранение...' : 'Сохранить классификацию'}
+            </button>
+          </div>
+          <div className="transcript-form-row">
+            <label className="transcript-label">Заметки к звонку</label>
+            <textarea
+              className="transcript-input transcript-textarea"
+              placeholder="Добавить заметку..."
+              value={notes}
+              onChange={e => setNotes(e.target.value)}
+              rows={3}
+            />
+          </div>
+          <div className="transcript-form-btns">
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={savingNotes}
+              onClick={async () => {
+                setSavingNotes(true);
+                try {
+                  const res = await fetch(`${API_BASE}/calls/${encodeURIComponent(call.callId)}`, {
+                    method: 'PATCH',
+                    headers: {
+                      Authorization: `Bearer ${token}`,
+                      'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ notes })
+                  });
+                  const data = await res.json();
+                  if (res.ok) onUpdate(data);
+                } finally {
+                  setSavingNotes(false);
+                }
+              }}
+            >
+              {savingNotes ? 'Сохранение...' : 'Сохранить заметки'}
+            </button>
+          </div>
+          <div className="transcript-form-btns">
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={syncingCrm}
+              onClick={async () => {
               setSyncingCrm(true);
               try {
                 const res = await fetch(`${API_BASE}/calls/${encodeURIComponent(call.callId)}/sync-crm`, {
@@ -473,9 +479,10 @@ function TranscriptPanel({ call, onClose, token, onUpdate, showToast }) {
                 setSyncingCrm(false);
               }
             }}
-          >
-            {syncingCrm ? 'Отправка...' : 'Отправить в CRM'}
-          </button>
+            >
+              {syncingCrm ? 'Отправка...' : 'Отправить в CRM'}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -532,31 +539,6 @@ function DashboardPage({ stats, calls, loading, onSelectCall, token, fetchData }
     <div className="page">
       <div className="page-header">
         <h1 className="page-title">Dashboard</h1>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
-          <button
-            className="btn-secondary"
-            onClick={async () => {
-              try {
-                const res = await fetch(`${API_BASE}/test/inbound`, {
-                  method: 'POST',
-                  headers: { 'Authorization': `Bearer ${token}` }
-                });
-                if (res.ok) {
-                  alert('Тестовый входящий вебхук отправлен! Звонок появится в списке через пару секунд.');
-                  fetchData();
-                } else {
-                  const errData = await res.json();
-                  alert('Ошибка: ' + errData.error);
-                }
-              } catch (e) {
-                console.error(e);
-              }
-            }}
-          >
-            <PhoneIncoming size={14} />
-            <span>Тестовый входящий</span>
-          </button>
-        </div>
       </div>
 
       <div className="metrics-grid metrics-grid--three">
@@ -1324,12 +1306,15 @@ function OutboundCallModal({ token, onClose, onSuccess }) {
   };
 
   return (
-    <div className="transcript-overlay" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div className="login-card" style={{ width: 360, position: 'relative' }}>
-        <button className="icon-btn" style={{ position: 'absolute', right: 16, top: 16 }} onClick={onClose}>
-          <X size={18} />
-        </button>
-        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Новый звонок</h2>
+    <div className="outbound-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="outbound-modal-panel" onClick={e => e.stopPropagation()}>
+        <div className="outbound-modal-header">
+          <h2 className="outbound-modal-title">Новый звонок</h2>
+          <button type="button" className="outbound-modal-close" onClick={onClose} aria-label="Закрыть">
+            <X size={20} />
+          </button>
+        </div>
+        <div className="outbound-modal-body">
         <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>Запустите исходящий звонок. Требуется VAPI_PHONE_NUMBER_ID в .env для реального вызова.</p>
 
         <div className="login-form">
@@ -1378,9 +1363,10 @@ function OutboundCallModal({ token, onClose, onSuccess }) {
               Demo
             </button>
           </div>
-          <div style={{ marginTop: 16, fontSize: 11, color: 'var(--text-3)', textAlign: 'center' }}>
-            Или используйте кнопку "Поговорить" в меню слева для звонка через браузер.
+          <div className="outbound-modal-hint">
+            Или используйте пункт «Demo Call» в меню слева для звонка через браузер.
           </div>
+        </div>
         </div>
       </div>
     </div>

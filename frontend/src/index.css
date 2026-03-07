@@ -842,32 +842,128 @@ input {
   display: flex;
   flex-direction: column;
   height: 100%;
+  background: var(--bg-2);
 }
 
 .transcript-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding: 18px 20px;
+  gap: 16px;
+  padding: 20px 22px;
   border-bottom: 1px solid var(--border);
+  background: var(--bg-3);
+  flex-shrink: 0;
+}
+
+.transcript-header-main {
+  flex: 1;
+  min-width: 0;
 }
 
 .transcript-title {
-  font-size: 15px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--text);
+  margin-bottom: 6px;
+}
+
+.transcript-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  font-size: 13px;
+  color: var(--text-2);
+  margin-bottom: 10px;
+}
+
+.transcript-contact {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.transcript-phone {
+  font-variant-numeric: tabular-nums;
+}
+
+.transcript-meta .transcript-phone::before {
+  content: '·';
+  margin-right: 6px;
+  color: var(--text-3);
+}
+
+.transcript-meta .transcript-date::before {
+  content: '·';
+  margin-right: 6px;
+  color: var(--text-3);
+}
+
+.transcript-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.transcript-duration-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-2);
+  background: var(--bg-4);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.transcript-close-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  transition: background 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+
+.transcript-close-btn:hover {
+  background: var(--bg-4);
+  color: var(--text);
+}
+
+.transcript-player-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-3);
+  flex-shrink: 0;
+}
+
+.transcript-waveform-box {
+  padding: 14px 20px 8px;
+}
+
+.transcript-player-block .audio-player {
+  padding: 8px 20px 18px;
+  border-top: none;
+  gap: 10px;
+}
+
+.audio-unavailable {
+  text-align: center;
+  font-size: 13px;
+  color: var(--text-3);
+  padding: 14px 20px;
 }
 
 .transcript-sub {
   font-size: 12px;
   color: var(--text-2);
   margin-top: 3px;
-}
-
-.transcript-waveform-box {
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-3);
 }
 
 .transcript-card {
@@ -929,17 +1025,27 @@ input {
 }
 
 .transcript-avatar {
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--accent), var(--purple));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: white;
   flex-shrink: 0;
+}
+
+.transcript-avatar--client {
+  background: linear-gradient(135deg, var(--bg-4), var(--text-3));
+  color: var(--text);
+}
+
+.transcript-avatar--agent {
+  background: linear-gradient(135deg, var(--accent), var(--purple));
+  color: white;
 }
 
 .transcript-speaker {
@@ -958,7 +1064,69 @@ input {
   font-size: 13px;
   color: var(--text-2);
   line-height: 1.6;
-  padding-left: 32px;
+  padding-left: 34px;
+}
+
+/* Transcript panel: classification & notes */
+.transcript-actions {
+  padding: 18px 20px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-2);
+  flex-shrink: 0;
+}
+
+.transcript-actions-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 14px;
+}
+
+.transcript-form-row {
+  margin-bottom: 14px;
+}
+
+.transcript-form-row:last-of-type {
+  margin-bottom: 12px;
+}
+
+.transcript-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+
+.transcript-input {
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-3);
+  color: var(--text);
+  font-size: 13px;
+  transition: border-color 0.15s;
+}
+
+.transcript-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.transcript-textarea {
+  resize: vertical;
+  min-height: 64px;
+}
+
+.transcript-form-btns {
+  margin-bottom: 16px;
+}
+
+.transcript-form-btns:last-child {
+  margin-bottom: 0;
 }
 
 /* ── Audio Player (Notta Style) ──────────────────────────────────────────────── */
@@ -1213,6 +1381,86 @@ input {
   background: rgba(168, 85, 247, 0.1);
   bottom: -60px;
   right: -60px;
+}
+
+/* Full-screen outbound call modal */
+.outbound-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.outbound-modal-panel {
+  width: 100%;
+  max-width: 440px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  background: var(--bg-2);
+  border: 1px solid var(--border-2);
+  border-radius: var(--radius);
+  box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+}
+
+.outbound-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 22px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.outbound-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.outbound-modal-close {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.outbound-modal-close:hover {
+  background: var(--bg-4);
+  color: var(--text);
+}
+
+.outbound-modal-body {
+  padding: 24px 22px 28px;
+}
+
+.outbound-modal-body > p {
+  font-size: 13px;
+  color: var(--text-3);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.outbound-modal-hint {
+  margin-top: 16px;
+  font-size: 11px;
+  color: var(--text-3);
+  text-align: center;
+  line-height: 1.4;
 }
 
 .login-card {

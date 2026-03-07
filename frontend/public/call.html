@@ -34,13 +34,6 @@
       Получить их можно в <a href="https://dashboard.vapi.ai" target="_blank" rel="noopener">VAPI Dashboard</a>.
     </div>
     <p id="readyMsg">Виджет звонка появится ниже. Разрешите доступ к микрофону.</p>
-    <div id="debugArea" style="margin-top: 2rem; display: none;">
-      <button id="syncBtn" class="btn btn-secondary"
-        style="background: #e2e8f0; border: 1px solid #cbd5e1; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;">
-        Синхронизировать звонок вручную
-      </button>
-      <p id="syncStatus" style="font-size: 0.8rem; margin-top: 0.5rem; color: #64748b;"></p>
-    </div>
   </div>
 
   <script>
@@ -68,12 +61,8 @@
 
         vapiInstance.on('call-start', (data) => {
           console.log('--- CALL START ---', data);
-          // Try to extract ID from various possible locations in the payload
           activeCallId = data?.id || data?.callId || data?.call?.id;
           if (activeCallId) console.log('Found Call ID on start:', activeCallId);
-
-          document.getElementById('debugArea').style.display = 'block';
-          document.getElementById('syncStatus').innerText = 'Звонок идет... (ID: ' + (activeCallId || 'поиск...') + ')';
         });
 
         vapiInstance.on('message', (msg) => {
@@ -86,26 +75,11 @@
 
         vapiInstance.on('call-end', async (data) => {
           console.log('--- CALL END ---', data);
-          // Try current data, then fallback to what we caught earlier
           const currentId = data?.id || data?.call?.id || data?.callId;
           const finalId = currentId || activeCallId;
-
-          console.log('Resolved Final Call ID:', finalId);
-
-          if (finalId) {
-            document.getElementById('debugArea').style.display = 'block';
-            document.getElementById('syncStatus').innerText = 'Синхронизация...';
-            await triggerSync(finalId);
-          } else {
-            console.error('CRITICAL: No callId found. Full end data:', data);
-            document.getElementById('syncStatus').innerText = 'Ошибка: ID не найден. Проверьте F12.';
-          }
+          if (finalId) await triggerSync(finalId);
+          else console.error('No callId found. Full end data:', data);
         });
-
-        document.getElementById('syncBtn').onclick = async () => {
-          const callId = prompt('Введите Call ID (если авто-фиксация не сработала):', activeCallId || '');
-          if (callId) await triggerSync(callId);
-        };
       };
 
       async function triggerSync(callId) {
@@ -117,10 +91,8 @@
           });
           const result = await sRes.json();
           console.log('Sync result:', result);
-          document.getElementById('syncStatus').innerText = 'Готово! Проверьте Дашборд.';
         } catch (err) {
           console.error('Failed to trigger sync:', err);
-          document.getElementById('syncStatus').innerText = 'Ошибка синхронизации';
         }
       }
       document.body.appendChild(script);
