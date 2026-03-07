@@ -1,6 +1,32 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { settings } from '../db/schema.js';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const DATA_DIR = join(__dirname, '..', '..', 'data');
+const JSON_SETTINGS = join(DATA_DIR, 'settings.json');
+
+function ensureDataDir() {
+  if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+}
+
+function getJsonSettings() {
+  ensureDataDir();
+  if (!existsSync(JSON_SETTINGS)) return null;
+  try {
+    return JSON.parse(readFileSync(JSON_SETTINGS, 'utf-8'));
+  } catch {
+    return null;
+  }
+}
+
+function saveJsonSettings(data) {
+  ensureDataDir();
+  writeFileSync(JSON_SETTINGS, JSON.stringify(data, null, 2));
+}
 
 const DEFAULTS = {
   systemPrompt: `# Роль
@@ -50,8 +76,9 @@ export async function loadSettings() {
     if (result.length === 0) return { ...DEFAULTS };
     return { ...DEFAULTS, ...(result[0].value || {}) };
   } catch (err) {
-    console.error('Failed to load settings from DB:', err.message);
-    return { ...DEFAULTS };
+    console.warn('DB settings load failed, falling back to JSON:', err.message);
+    const json = getJsonSettings();
+    return { ...DEFAULTS, ...(json || {}) };
   }
 }
 
@@ -66,12 +93,12 @@ export async function saveSettings(updates) {
     } else {
       await db.update(settings).set({ value: merged, updatedAt: new Date() }).where(eq(settings.key, SETTINGS_KEY));
     }
+    return merged;
   } catch (err) {
-    console.error('Failed to save settings to DB:', err.message);
-    throw err;
+    console.warn('DB settings save failed, falling back to JSON:', err.message);
+    saveJsonSettings(merged);
+    return merged;
   }
-
-  return merged;
 }
 
 /** Sync current settings to VAPI assistant (firstMessage + system prompt). Returns settings with _vapiSynced or _vapiError. */
