@@ -63,7 +63,7 @@ export async function handleVapiJob(payload) {
         for (let attempt = 0; attempt < 3; attempt++) {
             try {
                 if (attempt > 0) await new Promise(r => setTimeout(r, 5000));
-                const fullCall = await vapi.calls.get(callId);
+                const fullCall = await vapi.calls.get({ id: callId });
                 const msgs = fullCall.artifact?.messages || fullCall.artifact?.transcript || fullCall.messages || [];
 
                 if (!transcript && msgs.length > 0) {

@@ -4,7 +4,8 @@ import { spawn } from 'child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { loadSettings, saveSettings, syncToVapi } from '../services/settings.js';
-import { listCalls, getStats, getScript, getCallByCallId, updateCall } from '../services/storage.js';
+import { listCalls, getStats, getScript, getCallByCallId, updateCall, saveCall } from '../services/storage.js';
+import { createStoredCall } from '../schemas/call.js';
 import { createLead, updateLeadStatus } from '../services/amo-client.js';
 import { createDeal, updateDealStage } from '../services/bitrix-client.js';
 
@@ -272,45 +273,98 @@ export const createOutboundCall = async (req, res) => {
     }
 };
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export const syncCall = async (req, res) => {
     console.log('--- Sync triggered ---', req.body);
+    let id;
     try {
         const { callId } = req.body || {};
-        if (!callId) return res.status(400).json({ error: 'callId is required' });
+        if (!callId || typeof callId !== 'string') return res.status(400).json({ error: 'callId is required' });
+        id = callId.trim();
+        if (!UUID_RE.test(id)) return res.status(400).json({ error: 'callId must be a valid UUID' });
 
         const { handleVapiJob } = await import('../services/queue.js');
         const vapi = process.env.VAPI_API_KEY ? new VapiClient({ token: process.env.VAPI_API_KEY }) : null;
 
         if (!vapi) throw new Error('VAPI_API_KEY not configured');
 
-        // Fetch data once immediately and trigger processing
-        const call = await vapi.calls.get(callId);
+        // Fetch call from VAPI (retry on 404: call may not be available immediately after end)
+        let call;
+        const maxAttempts = 4;
+        const delayMs = 2500;
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                call = await vapi.calls.get({ id });
+                break;
+            } catch (fetchErr) {
+                const is404 = fetchErr?.statusCode === 404 || fetchErr?.body?.statusCode === 404;
+                if (is404 && attempt < maxAttempts) {
+                    console.log(`Call ${id} not ready (404), retry ${attempt}/${maxAttempts} in ${delayMs}ms...`);
+                    await new Promise(r => setTimeout(r, delayMs));
+                    continue;
+                }
+                throw fetchErr;
+            }
+        }
+        if (!call) throw new Error('Call not found');
+        const callData = call?.data ?? call;
+
+        const artifact = callData.artifact || {};
+        const msgs = artifact.messages || artifact.transcript || [];
+        const transcript = msgs.length > 0
+            ? msgs.map(m => `[${m.role || 'unknown'}]: ${m.message || m.content || m.text || ''}`).filter(Boolean).join('\n')
+            : '';
+        const recordingUrl = callData.artifact?.recording?.url || callData.artifact?.recording?.mono?.url || callData.recordingUrl || null;
+
         const payload = {
-            msg: { type: 'end-of-call-report', summary: call.summary || '' },
-            call,
-            callId: call.id,
-            summary: call.summary || '',
-            from: call.customer?.number || 'unknown',
-            callerName: call.customer?.name || null,
-            callType: call.direction || 'inbound',
-            recordingUrl: call.artifact?.recordingUrl || '',
+            msg: { type: 'end-of-call-report', summary: callData.summary || '' },
+            call: callData,
+            callId: callData.id || id,
+            summary: callData.summary || '',
+            from: callData.customer?.number || callData.customer?.phoneNumber || 'unknown',
+            callerName: callData.customer?.name || callData.customer?.firstName || null,
+            callType: (callData.direction === 'outbound' || callData.type === 'outbound') ? 'outbound' : 'inbound',
+            recordingUrl: recordingUrl || '',
             isValidUuid: true,
-            duration: call.duration || 0,
-            transcript: '', // handleVapiJob will fetch it
-            transcriptForStorage: []
+            duration: callData.duration || 0,
+            transcript,
+            transcriptForStorage: msgs
         };
 
-        console.log(`Syncing call ${callId} from Vapi...`);
-        // We run it async but background-ish
-        handleVapiJob(payload).then(() => {
-            console.log(`Sync completed for ${callId}`);
-        }).catch(err => {
-            console.error(`Sync background error for ${callId}:`, err);
-        });
-
-        res.json({ success: true, message: 'Sync triggered' });
+        console.log(`Syncing call ${id} from Vapi...`);
+        await handleVapiJob(payload);
+        console.log(`Sync completed for ${id}`);
+        res.json({ success: true, message: 'Call saved' });
     } catch (err) {
         console.error('Sync call error:', err);
+        const is404 = err?.statusCode === 404 || err?.body?.statusCode === 404;
+        if (is404) {
+            // VAPI may not expose web/browser calls via API — save a stub so the call appears in Dashboard
+            try {
+                const stub = createStoredCall({
+                    callId: id,
+                    timestamp: new Date().toISOString(),
+                    callType: 'inbound',
+                    callerPhone: '',
+                    callerName: 'Demo Call (браузер)',
+                    duration: 0,
+                    recordingUrl: null,
+                    transcript: [],
+                    summary: 'Звонок из браузера. Данные из VAPI по этому ID недоступны (возможно, не поддерживаются для веб-звонков).',
+                    leadTemperature: 'cold',
+                    classificationReason: '',
+                });
+                await saveCall(stub);
+                console.log(`Saved stub call ${id} (VAPI 404).`);
+                return res.json({ success: true, message: 'Call saved (minimal record)' });
+            } catch (saveErr) {
+                console.error('Stub save failed:', saveErr);
+                return res.status(404).json({
+                    error: 'Звонок не найден в VAPI. Запись не создана.',
+                });
+            }
+        }
         res.status(500).json({ error: err.message });
     }
 };

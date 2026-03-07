@@ -254,15 +254,29 @@ function TranscriptPanel({ call, onClose, token, onUpdate, showToast }) {
     audioRef.current.currentTime = newTime;
   };
 
-  // Build transcript lines from call.transcript (array of { role, message?, content?, text?, time? })
-  const transcriptArr = Array.isArray(call?.transcript) ? call.transcript : [];
-  const lines = transcriptArr.map((m, i) => {
-    const text = m.message ?? m.content ?? m.text ?? '';
-    const role = (m.role || '').toLowerCase();
-    const speaker = role === 'user' ? (call?.callerName || 'Клиент') : 'Агент';
-    const timeStr = m.time != null ? fmt(Number(m.time)) : (i > 0 ? '' : '0:00');
-    return { speaker, time: timeStr, text };
-  });
+  // Build transcript lines: support array of { role, message?, content?, text? } or string "[role]: text\n..."
+  const raw = call?.transcript;
+  let lines = [];
+  if (Array.isArray(raw)) {
+    lines = raw.map((m, i) => {
+      const text = m.message ?? m.content ?? m.text ?? '';
+      const role = (m.role || '').toLowerCase();
+      const speaker = role === 'user' ? (call?.callerName || 'Клиент') : 'Агент';
+      const timeStr = m.time != null ? fmt(Number(m.time)) : (i > 0 ? '' : '0:00');
+      return { speaker, time: timeStr, text };
+    }).filter(l => l.text.trim());
+  } else if (typeof raw === 'string' && raw.trim()) {
+    const parsed = raw.split(/\n+/).map(line => {
+      const match = line.match(/^\s*\[?(assistant|user|agent|клиент)\]?:\s*(.*)$/i);
+      if (match) {
+        const role = match[1].toLowerCase();
+        const speaker = (role === 'user' || role === 'клиент') ? (call?.callerName || 'Клиент') : 'Агент';
+        return { speaker, time: '', text: match[2].trim() };
+      }
+      return { speaker: 'Агент', time: '', text: line.trim() };
+    }).filter(l => l.text);
+    lines = parsed;
+  }
 
   const hasSummary = !!(call?.summary || call?.aiSummary);
   const summaryText = call?.summary || call?.aiSummary || '';
@@ -1463,6 +1477,13 @@ export default function App() {
     if (!isAuthenticated) return;
     const id = setInterval(fetchData, 30000);
     return () => clearInterval(id);
+  }, [isAuthenticated, token]);
+
+  // Refetch when user returns to the tab (e.g. after Demo Call)
+  useEffect(() => {
+    const onFocus = () => { if (document.visibilityState === 'visible') fetchData(); };
+    document.addEventListener('visibilitychange', onFocus);
+    return () => document.removeEventListener('visibilitychange', onFocus);
   }, [isAuthenticated, token]);
 
   if (!isAuthenticated) {

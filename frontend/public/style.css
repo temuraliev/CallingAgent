@@ -856,6 +856,22 @@ body {
   font-size: 0.9rem;
 }
 
+.call-page .sync-status {
+  margin-top: 1rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+.call-page .sync-status--ok {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--success);
+}
+.call-page .sync-status--error {
+  background: var(--hot-bg);
+  color: var(--hot);
+}
+
 /* ── Settings ── */
 .settings-form {
   max-width: 800px;

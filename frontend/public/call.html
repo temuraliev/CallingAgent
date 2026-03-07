@@ -34,6 +34,7 @@
       Получить их можно в <a href="https://dashboard.vapi.ai" target="_blank" rel="noopener">VAPI Dashboard</a>.
     </div>
     <p id="readyMsg">Виджет звонка появится ниже. Разрешите доступ к микрофону.</p>
+    <p id="syncStatus" class="sync-status hidden"></p>
   </div>
 
   <script>
@@ -61,38 +62,93 @@
 
         vapiInstance.on('call-start', (data) => {
           console.log('--- CALL START ---', data);
-          activeCallId = data?.id || data?.callId || data?.call?.id;
+          activeCallId = pickCallId(data);
           if (activeCallId) console.log('Found Call ID on start:', activeCallId);
         });
 
         vapiInstance.on('message', (msg) => {
-          // Sometimes ID comes via a message event
-          if (!activeCallId && (msg?.callId || msg?.id)) {
-            activeCallId = msg.callId || msg.id;
-            console.log('Found Call ID via message:', activeCallId);
+          if (!activeCallId) {
+            var id = pickCallId(msg);
+            if (id && isValidUuid(id)) {
+              activeCallId = String(id);
+              console.log('Found Call ID via message:', activeCallId);
+            }
           }
         });
 
         vapiInstance.on('call-end', async (data) => {
           console.log('--- CALL END ---', data);
-          const currentId = data?.id || data?.call?.id || data?.callId;
-          const finalId = currentId || activeCallId;
+          var currentId = pickCallId(data);
+          var finalId = (currentId && isValidUuid(currentId) ? currentId : null) || (activeCallId && isValidUuid(activeCallId) ? activeCallId : null);
           if (finalId) await triggerSync(finalId);
-          else console.error('No callId found. Full end data:', data);
+          else showSyncStatus('Не удалось получить ID звонка. Проверьте консоль (F12).', true);
         });
       };
 
+      function isValidUuid(str) {
+        if (typeof str !== 'string' || !str) return false;
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim());
+      }
+
+      function pickCallId(data) {
+        if (!data) return null;
+        var uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+        function from(obj) {
+          if (!obj || typeof obj !== 'object') return null;
+          var id = obj.id || obj.callId || obj.call_id;
+          if (id && uuidRe.test(String(id))) return String(id);
+          if (obj.call) return from(obj.call);
+          if (obj.message && obj.message.call) return from(obj.message.call);
+          return null;
+        }
+        var id = from(data) || data.id || data.callId || data.call?.id || data.call?.callId;
+        if (id && isValidUuid(String(id))) return String(id);
+        function findUuid(obj, depth) {
+          if (depth > 5) return null;
+          if (!obj || typeof obj !== 'object') return null;
+          if (typeof obj === 'string' && uuidRe.test(obj)) return obj;
+          for (var key in obj) {
+            var v = obj[key];
+            if (typeof v === 'string' && uuidRe.test(v)) return v;
+            var found = findUuid(v, depth + 1);
+            if (found) return found;
+          }
+          return null;
+        }
+        return findUuid(data, 0);
+      }
+
+      function showSyncStatus(text, isError) {
+        const el = document.getElementById('syncStatus');
+        if (!el) return;
+        el.textContent = text;
+        el.className = 'sync-status ' + (isError ? 'sync-status--error' : 'sync-status--ok');
+        el.classList.remove('hidden');
+      }
+
       async function triggerSync(callId) {
+        var statusEl = document.getElementById('syncStatus');
         try {
-          const sRes = await fetch('/api/sync-call', {
+          statusEl && statusEl.classList.add('hidden');
+          var id = (callId && String(callId).trim()) || '';
+          if (!isValidUuid(id)) {
+            showSyncStatus('ID звонка не в формате UUID. Не удалось синхронизировать.', true);
+            return;
+          }
+          var sRes = await fetch('/api/sync-call', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ callId })
+            body: JSON.stringify({ callId: id })
           });
-          const result = await sRes.json();
-          console.log('Sync result:', result);
+          var result = await sRes.json();
+          if (sRes.ok && result.success) {
+            showSyncStatus('Звонок сохранён. Откройте Dashboard и нажмите «Обновить» (или F5), чтобы увидеть звонок.');
+          } else {
+            showSyncStatus(result.error || 'Ошибка синхронизации', true);
+          }
         } catch (err) {
           console.error('Failed to trigger sync:', err);
+          showSyncStatus('Ошибка сети или сервера: ' + (err.message || 'проверьте консоль'), true);
         }
       }
       document.body.appendChild(script);
