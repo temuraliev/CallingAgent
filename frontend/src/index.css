@@ -799,6 +799,18 @@ input {
   transition: height 0.15s ease;
 }
 
+/* Full-width waveform in transcript panel */
+.transcript-panel .waveform {
+  width: 100%;
+  flex: 1;
+  min-width: 0;
+}
+
+.transcript-panel .waveform-bar {
+  flex: 1;
+  min-width: 2px;
+}
+
 .waveform-bar--active {
   animation: wave-bounce 0.6s ease-in-out infinite alternate;
 }
@@ -813,36 +825,61 @@ input {
   }
 }
 
-/* ── Transcript Panel ────────────────────────────────────────────────────── */
+/* ── Transcript Panel (full-screen, polished UI) ────────────────────────────── */
 .transcript-overlay {
-  width: 360px;
-  flex-shrink: 0;
-  border-left: 1px solid var(--border);
-  background: var(--bg-2);
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(10, 12, 18, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   overflow: hidden;
+  animation: transcriptOverlayIn 0.2s ease-out;
 }
 
-@media (max-width: 768px) {
-  .transcript-overlay {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    max-width: none;
-    z-index: 1000;
-    border-left: none;
-  }
+@keyframes transcriptOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 .transcript-panel {
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 720px;
   height: 100%;
-  background: var(--bg-2);
+  max-height: 92vh;
+  margin: auto;
+  background: linear-gradient(180deg, var(--bg-2) 0%, #0f1219 100%);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.06),
+    0 24px 48px -12px rgba(0, 0, 0, 0.5),
+    0 0 80px -20px rgba(79, 110, 247, 0.08);
+  overflow: hidden;
+  animation: transcriptPanelIn 0.25s ease-out;
+}
+
+@keyframes transcriptPanelIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .transcript-panel {
+    max-width: none;
+    max-height: 100vh;
+    border-radius: 0;
+  }
 }
 
 .transcript-header {
@@ -850,9 +887,9 @@ input {
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 20px 22px;
+  padding: 24px 28px;
+  background: linear-gradient(135deg, rgba(26, 30, 40, 0.9) 0%, rgba(19, 22, 29, 0.95) 100%);
   border-bottom: 1px solid var(--border);
-  background: var(--bg-3);
   flex-shrink: 0;
 }
 
@@ -862,190 +899,262 @@ input {
 }
 
 .transcript-title {
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--text);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .transcript-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px 14px;
+  gap: 10px 18px;
   font-size: 13px;
   color: var(--text-2);
-  margin-bottom: 10px;
+  margin-bottom: 14px;
 }
 
 .transcript-contact {
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text);
+  font-size: 14px;
 }
 
 .transcript-phone {
   font-variant-numeric: tabular-nums;
+  color: var(--text-2);
 }
 
 .transcript-meta .transcript-phone::before {
   content: '·';
-  margin-right: 6px;
+  margin-right: 8px;
   color: var(--text-3);
 }
 
 .transcript-meta .transcript-date::before {
   content: '·';
-  margin-right: 6px;
+  margin-right: 8px;
   color: var(--text-3);
 }
 
 .transcript-badges {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 10px;
 }
 
 .transcript-duration-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  font-size: 11px;
+  gap: 5px;
+  font-size: 12px;
   font-weight: 500;
   color: var(--text-2);
-  background: var(--bg-4);
-  padding: 4px 8px;
-  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 .transcript-close-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   color: var(--text-2);
-  transition: background 0.15s, color 0.15s;
+  background: rgba(255, 255, 255, 0.04);
+  transition: background 0.2s, color 0.2s, transform 0.15s;
   flex-shrink: 0;
 }
 
 .transcript-close-btn:hover {
-  background: var(--bg-4);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text);
+  transform: scale(1.05);
 }
 
 .transcript-player-block {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  width: 100%;
+  padding: 20px 0 24px;
+  background: rgba(0, 0, 0, 0.2);
   border-bottom: 1px solid var(--border);
-  background: var(--bg-3);
   flex-shrink: 0;
 }
 
 .transcript-waveform-box {
-  padding: 14px 20px 8px;
+  padding: 0 0 16px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .transcript-player-block .audio-player {
-  padding: 8px 20px 18px;
+  padding: 0;
+  gap: 14px;
   border-top: none;
-  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.transcript-player-block .audio-progress-bar {
+  width: 100%;
+  margin: 0;
+}
+
+.transcript-player-block .audio-controls {
+  padding: 0 28px;
+  box-sizing: border-box;
+}
+
+.transcript-panel-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--bg-4) transparent;
+}
+
+.transcript-panel-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.transcript-panel-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.transcript-panel-scroll::-webkit-scrollbar-thumb {
+  background: var(--bg-4);
+  border-radius: 6px;
+}
+
+.transcript-panel-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-3);
 }
 
 .audio-unavailable {
   text-align: center;
   font-size: 13px;
   color: var(--text-3);
-  padding: 14px 20px;
+  padding: 20px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: var(--radius-sm);
 }
 
 .transcript-sub {
   font-size: 12px;
   color: var(--text-2);
-  margin-top: 3px;
+  margin-top: 4px;
 }
 
 .transcript-card {
-  flex: 1;
-  min-height: 200px;
+  flex: none;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg-2);
+  background: transparent;
+  overflow: visible;
 }
 
 .transcript-card-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text-2);
+  color: var(--text-3);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  padding: 12px 20px 8px;
+  letter-spacing: 0.08em;
+  padding: 18px 28px 10px;
 }
 
 .transcript-card--summary .transcript-card-title {
-  padding-top: 12px;
+  padding-top: 16px;
+}
+
+.transcript-card--summary {
+  border-top: 1px solid var(--border);
+  flex: 0 0 auto;
 }
 
 .transcript-summary-text {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-2);
-  line-height: 1.6;
-  padding: 0 20px 14px;
+  line-height: 1.65;
+  padding: 0 28px 24px;
   white-space: pre-wrap;
 }
 
 .transcript-empty {
   font-size: 13px;
   color: var(--text-3);
-  padding: 14px 20px;
+  padding: 24px 28px;
   font-style: italic;
+  text-align: center;
 }
 
 .transcript-lines {
-  flex: 1;
-  min-height: 120px;
-  overflow-y: auto;
-  padding: 14px 20px 14px;
+  flex: none;
+  min-height: 0;
+  overflow: visible;
+  padding: 8px 28px 24px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
   scrollbar-width: thin;
   scrollbar-color: var(--bg-4) transparent;
 }
 
-.transcript-line {}
+.transcript-line {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 18px;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.transcript-line:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
+}
 
 .transcript-line-header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 5px;
+  gap: 10px;
+  margin-bottom: 0;
 }
 
 .transcript-avatar {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--purple));
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--accent) 0%, #6b5cf7 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   color: white;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(79, 110, 247, 0.25);
 }
 
 .transcript-avatar--client {
-  background: linear-gradient(135deg, var(--bg-4), var(--text-3));
+  background: linear-gradient(135deg, var(--bg-4) 0%, #2d3548 100%);
   color: var(--text);
+  box-shadow: none;
 }
 
 .transcript-avatar--agent {
-  background: linear-gradient(135deg, var(--accent), var(--purple));
+  background: linear-gradient(135deg, var(--accent) 0%, #6b5cf7 100%);
   color: white;
+  box-shadow: 0 2px 8px rgba(79, 110, 247, 0.25);
 }
 
 .transcript-speaker {
@@ -1058,38 +1167,40 @@ input {
   font-size: 11px;
   color: var(--text-3);
   margin-left: auto;
+  font-variant-numeric: tabular-nums;
 }
 
 .transcript-text {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-2);
   line-height: 1.6;
-  padding-left: 34px;
+  padding-left: 0;
+  padding-top: 2px;
 }
 
 /* Transcript panel: classification & notes */
 .transcript-actions {
-  padding: 18px 20px 20px;
+  padding: 24px 28px 28px;
   border-top: 1px solid var(--border);
-  background: var(--bg-2);
+  background: linear-gradient(0deg, rgba(0, 0, 0, 0.15) 0%, transparent 100%);
   flex-shrink: 0;
 }
 
 .transcript-actions-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
-  color: var(--text-2);
+  color: var(--text-3);
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 14px;
+  letter-spacing: 0.08em;
+  margin-bottom: 18px;
 }
 
 .transcript-form-row {
-  margin-bottom: 14px;
+  margin-bottom: 18px;
 }
 
 .transcript-form-row:last-of-type {
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .transcript-label {
@@ -1097,36 +1208,79 @@ input {
   font-size: 12px;
   font-weight: 500;
   color: var(--text-2);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .transcript-input {
   width: 100%;
-  padding: 9px 12px;
-  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  border-radius: 10px;
   border: 1px solid var(--border);
   background: var(--bg-3);
   color: var(--text);
   font-size: 13px;
-  transition: border-color 0.15s;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
 .transcript-input:focus {
   outline: none;
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79, 110, 247, 0.15);
 }
 
 .transcript-textarea {
   resize: vertical;
-  min-height: 64px;
+  min-height: 72px;
 }
 
 .transcript-form-btns {
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .transcript-form-btns:last-child {
   margin-bottom: 0;
+}
+
+.transcript-actions .btn-primary,
+.transcript-actions .btn-secondary {
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-weight: 500;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.transcript-actions .btn-primary:hover,
+.transcript-actions .btn-secondary:hover {
+  transform: translateY(-1px);
+}
+
+.transcript-actions .btn-primary:hover {
+  box-shadow: 0 4px 14px rgba(79, 110, 247, 0.35);
+}
+
+/* Audio inside transcript panel */
+.transcript-panel .audio-progress-bar {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+}
+
+.transcript-panel .audio-progress-fill {
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--accent) 0%, #6b5cf7 100%);
+}
+
+.transcript-panel .audio-play {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  box-shadow: 0 4px 16px rgba(79, 110, 247, 0.35);
+}
+
+.transcript-panel .audio-time {
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
 }
 
 /* ── Audio Player (Notta Style) ──────────────────────────────────────────────── */

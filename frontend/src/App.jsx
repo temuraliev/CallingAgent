@@ -355,6 +355,8 @@ function TranscriptPanel({ call, onClose, token, onUpdate, showToast }) {
         </div>
       </div>
 
+      {/* Scrollable body: transcript + summary + actions */}
+      <div className="transcript-panel-scroll">
       {/* Transcript card */}
       <div className="transcript-card">
         <div className="transcript-card-title">Транскрипт</div>
@@ -499,6 +501,7 @@ function TranscriptPanel({ call, onClose, token, onUpdate, showToast }) {
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 }
