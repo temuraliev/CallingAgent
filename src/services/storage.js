@@ -9,6 +9,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '..', '..', 'data');
 const JSON_DB = join(DATA_DIR, 'calls.json');
 const JSON_SCRIPTS = join(DATA_DIR, 'scripts.json');
+const JSON_PROFILE = join(DATA_DIR, 'business-profile.json');
 
 function ensureDataDir() {
   if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
@@ -297,4 +298,51 @@ export async function deleteScript(id) {
     await saveJsonScripts(filtered);
     return true;
   }
+}
+
+// ─── Business Profile Storage ────────────────────────────────────────────────
+
+function getJsonProfile() {
+  ensureDataDir();
+  if (!existsSync(JSON_PROFILE)) return null;
+  try {
+    const raw = readFileSync(JSON_PROFILE, 'utf-8');
+    return JSON.parse(raw);
+  } catch { return null; }
+}
+
+function saveJsonProfile(data) {
+  ensureDataDir();
+  writeFileSync(JSON_PROFILE, JSON.stringify(data, null, 2));
+}
+
+export async function getBusinessProfile() {
+  return getJsonProfile();
+}
+
+export async function saveBusinessProfile(profileData) {
+  const profile = {
+    ...profileData,
+    isSubmitted: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    supplements: {},
+  };
+  saveJsonProfile(profile);
+  return profile;
+}
+
+export async function appendBusinessProfileNote(questionKey, note) {
+  const profile = getJsonProfile();
+  if (!profile) return null;
+
+  if (!profile.supplements) profile.supplements = {};
+  if (!profile.supplements[questionKey]) profile.supplements[questionKey] = [];
+  profile.supplements[questionKey].push({
+    text: note,
+    addedAt: new Date().toISOString(),
+  });
+  profile.updatedAt = new Date().toISOString();
+  saveJsonProfile(profile);
+  return profile;
 }

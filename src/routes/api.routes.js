@@ -21,6 +21,11 @@ import {
     deleteScript,
     applyScript
 } from '../controllers/scripts.controller.js';
+import {
+    getProfile,
+    submitProfile,
+    addProfileNote
+} from '../controllers/profile.controller.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { validate } from '../middleware/validate.middleware.js';
 import {
@@ -30,7 +35,9 @@ import {
     createOutboundCallSchema,
     updateCallSchema,
     createScriptSchema,
-    updateScriptSchema
+    updateScriptSchema,
+    submitProfileSchema,
+    addProfileNoteSchema
 } from '../schemas/validation.js';
 
 const router = Router();
@@ -56,5 +63,10 @@ router.post('/scripts', requireAuth, validate(createScriptSchema), createScript)
 router.patch('/scripts/:id', requireAuth, validate(updateScriptSchema), updateScript);
 router.delete('/scripts/:id', requireAuth, deleteScript);
 router.post('/scripts/:id/apply', requireAuth, applyScript);
+
+// Business Profile
+router.get('/business-profile', requireAuth, getProfile);
+router.post('/business-profile', requireAuth, validate(submitProfileSchema), submitProfile);
+router.patch('/business-profile', requireAuth, validate(addProfileNoteSchema), addProfileNote);
 
 export default router;

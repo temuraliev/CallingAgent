@@ -3,8 +3,8 @@ import {
   PhoneCall, PhoneOutgoing, PhoneIncoming, Clock, Zap,
   AlertCircle, RefreshCw, LayoutDashboard, Phone, FileText,
   Settings, GitBranch, X, Play, Pause, ChevronRight,
-  Mic, TrendingUp, Users, Activity, ChevronDown,
-  LogOut, Bell, Search
+  Mic, TrendingUp, Users, Activity, ChevronDown, ChevronUp,
+  LogOut, Bell, Search, Menu, Plus, Lock, MessageSquarePlus
 } from 'lucide-react';
 
 const API_BASE = '/api';
@@ -72,61 +72,72 @@ const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'calls', label: 'Звонки', icon: Phone },
   { id: 'democall', label: 'Demo Call', icon: Mic, href: '/call.html' },
-  { id: 'scripts', label: 'Скрипты', icon: FileText },
-  { id: 'settings', label: 'Настройки', icon: Settings },
+  { id: 'profile', label: 'О бизнесе', icon: FileText },
 ];
 
-function Sidebar({ active, onNav, onLogout }) {
+function Sidebar({ active, onNav, onLogout, isOpen, onClose }) {
+  const handleNav = (id) => {
+    onNav(id);
+    onClose?.();
+  };
+  const handleLogout = () => {
+    onLogout();
+    onClose?.();
+  };
   return (
-    <aside className="sidebar">
-      <div className="sidebar-logo">
-        <div className="sidebar-logo-icon">
-          <Activity size={18} />
+    <>
+      {isOpen && <div className="sidebar-backdrop" onClick={onClose} />}
+      <aside className={`sidebar ${isOpen ? 'sidebar--open' : ''}`}>
+        <div className="sidebar-logo">
+          <div className="sidebar-logo-icon">
+            <Activity size={18} />
+          </div>
+          <span className="sidebar-logo-text">CallFlow</span>
         </div>
-        <span className="sidebar-logo-text">CallFlow</span>
-      </div>
 
-      <nav className="sidebar-nav">
-        {NAV.map(({ id, label, icon: Icon, href }) => {
-          if (href) {
+        <nav className="sidebar-nav">
+          {NAV.map(({ id, label, icon: Icon, href }) => {
+            if (href) {
+              return (
+                <a
+                  key={id}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={`sidebar-nav-item ${active === id ? 'sidebar-nav-item--active' : ''}`}
+                  style={{ textDecoration: 'none' }}
+                  onClick={onClose}
+                >
+                  <Icon size={18} />
+                  <span>{label}</span>
+                </a>
+              );
+            }
             return (
-              <a
+              <button
                 key={id}
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
                 className={`sidebar-nav-item ${active === id ? 'sidebar-nav-item--active' : ''}`}
-                style={{ textDecoration: 'none' }}
+                onClick={() => handleNav(id)}
               >
                 <Icon size={18} />
                 <span>{label}</span>
-              </a>
+                {active === id && <div className="sidebar-nav-indicator" />}
+              </button>
             );
-          }
-          return (
-            <button
-              key={id}
-              className={`sidebar-nav-item ${active === id ? 'sidebar-nav-item--active' : ''}`}
-              onClick={() => onNav(id)}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-              {active === id && <div className="sidebar-nav-indicator" />}
-            </button>
-          );
-        })}
-      </nav>
+          })}
+        </nav>
 
-      <div className="sidebar-bottom">
-        <div className="ai-status">
-          <div className="ai-dot" />
-          <span>AI Active</span>
+        <div className="sidebar-bottom">
+          <div className="ai-status">
+            <div className="ai-dot" />
+            <span>AI Active</span>
+          </div>
+          <button className="sidebar-logout" onClick={handleLogout}>
+            <LogOut size={16} />
+          </button>
         </div>
-        <button className="sidebar-logout" onClick={onLogout}>
-          <LogOut size={16} />
-        </button>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }
 
@@ -185,6 +196,7 @@ function TranscriptPanel({ call, onClose, token, onUpdate, showToast }) {
   const [playbackRate, setPlaybackRate] = useState(1);
   const [notes, setNotes] = useState(call?.notes || '');
   const [savingNotes, setSavingNotes] = useState(false);
+  const [showTranscript, setShowTranscript] = useState(false);
   const audioRef = useRef(null);
 
   useEffect(() => {
@@ -355,153 +367,162 @@ function TranscriptPanel({ call, onClose, token, onUpdate, showToast }) {
         </div>
       </div>
 
-      {/* Scrollable body: transcript + summary + actions */}
+      {/* Scrollable body: summary + collapsible transcript + actions */}
       <div className="transcript-panel-scroll">
-      {/* Transcript card */}
-      <div className="transcript-card">
-        <div className="transcript-card-title">Транскрипт</div>
-        <div className="transcript-lines">
-          {lines.length > 0 ? (
-            lines.map((l, i) => (
-              <div key={i} className="transcript-line">
-                <div className="transcript-line-header">
-                  <div className={`transcript-avatar transcript-avatar--${(l.speaker === 'Агент' ? 'agent' : 'client')}`}>{l.speaker[0]}</div>
-                  <span className="transcript-speaker">{l.speaker}</span>
-                  <span className="transcript-time">{l.time}</span>
-                </div>
-                <p className="transcript-text">{l.text}</p>
-              </div>
-            ))
-          ) : (
-            <div className="transcript-empty">Транскрипт пока недоступен</div>
+
+        {/* AI Summary card — always visible */}
+        {hasSummary && (
+          <div className="transcript-card transcript-card--summary">
+            <div className="transcript-card-title">Резюме</div>
+            <p className="transcript-summary-text">{summaryText}</p>
+          </div>
+        )}
+
+        {/* Collapsible transcript */}
+        <div className="transcript-card">
+          <button
+            className="transcript-toggle-btn"
+            onClick={() => setShowTranscript(v => !v)}
+          >
+            {showTranscript ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            <span>{showTranscript ? 'Свернуть описание звонка' : 'Развернуть описание звонка'}</span>
+          </button>
+          {showTranscript && (
+            <div className="transcript-lines">
+              {lines.length > 0 ? (
+                lines.map((l, i) => (
+                  <div key={i} className="transcript-line">
+                    <div className="transcript-line-header">
+                      <div className={`transcript-avatar transcript-avatar--${(l.speaker === 'Агент' ? 'agent' : 'client')}`}>{l.speaker[0]}</div>
+                      <span className="transcript-speaker">{l.speaker}</span>
+                      <span className="transcript-time">{l.time}</span>
+                    </div>
+                    <p className="transcript-text">{l.text}</p>
+                  </div>
+                ))
+              ) : (
+                <div className="transcript-empty">Транскрипт пока недоступен</div>
+              )}
+            </div>
           )}
         </div>
+
+        {token && onUpdate && call?.callId && (
+          <div className="transcript-actions">
+            <div className="transcript-actions-title">Классификация и заметки</div>
+            <div className="transcript-form-row">
+              <label className="transcript-label">Температура лида</label>
+              <select
+                className="transcript-input"
+                value={leadTemperature}
+                onChange={e => setLeadTemperature(e.target.value)}
+              >
+                <option value="cold">Холодный</option>
+                <option value="warm">Тёплый</option>
+                <option value="hot">Горячий</option>
+              </select>
+            </div>
+            <div className="transcript-form-row">
+              <label className="transcript-label">Причина классификации</label>
+              <textarea
+                className="transcript-input transcript-textarea"
+                placeholder="Причина классификации..."
+                value={classificationReason}
+                onChange={e => setClassificationReason(e.target.value)}
+                rows={2}
+              />
+            </div>
+            <div className="transcript-form-btns">
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={saving}
+                onClick={async () => {
+                  setSaving(true);
+                  try {
+                    const res = await fetch(`${API_BASE}/calls/${encodeURIComponent(call.callId)}`, {
+                      method: 'PATCH',
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({ leadTemperature, classificationReason })
+                    });
+                    const data = await res.json();
+                    if (res.ok) onUpdate(data);
+                  } finally {
+                    setSaving(false);
+                  }
+                }}
+              >
+                {saving ? 'Сохранение...' : 'Сохранить классификацию'}
+              </button>
+            </div>
+            <div className="transcript-form-row">
+              <label className="transcript-label">Заметки к звонку</label>
+              <textarea
+                className="transcript-input transcript-textarea"
+                placeholder="Добавить заметку..."
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <div className="transcript-form-btns">
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={savingNotes}
+                onClick={async () => {
+                  setSavingNotes(true);
+                  try {
+                    const res = await fetch(`${API_BASE}/calls/${encodeURIComponent(call.callId)}`, {
+                      method: 'PATCH',
+                      headers: {
+                        Authorization: `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({ notes })
+                    });
+                    const data = await res.json();
+                    if (res.ok) onUpdate(data);
+                  } finally {
+                    setSavingNotes(false);
+                  }
+                }}
+              >
+                {savingNotes ? 'Сохранение...' : 'Сохранить заметки'}
+              </button>
+            </div>
+            <div className="transcript-form-btns">
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={syncingCrm}
+                onClick={async () => {
+                  setSyncingCrm(true);
+                  try {
+                    const res = await fetch(`${API_BASE}/calls/${encodeURIComponent(call.callId)}/sync-crm`, {
+                      method: 'POST',
+                      headers: { Authorization: `Bearer ${token}` }
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                      onUpdate(data);
+                      showToast?.('Отправлено в CRM');
+                    } else if (res.status === 400) (showToast || (m => alert(m)))(data.error || 'CRM не настроен', true);
+                    else (showToast || (m => alert(m)))(data.error || 'Ошибка синхронизации с CRM', true);
+                  } finally {
+                    setSyncingCrm(false);
+                  }
+                }}
+              >
+                {syncingCrm ? 'Отправка...' : 'Отправить в CRM'}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* AI Summary card */}
-      {hasSummary && (
-        <div className="transcript-card transcript-card--summary">
-          <div className="transcript-card-title">Резюме</div>
-          <p className="transcript-summary-text">{summaryText}</p>
-        </div>
-      )}
-
-      {token && onUpdate && call?.callId && (
-        <div className="transcript-actions">
-          <div className="transcript-actions-title">Классификация и заметки</div>
-          <div className="transcript-form-row">
-            <label className="transcript-label">Температура лида</label>
-            <select
-              className="transcript-input"
-              value={leadTemperature}
-              onChange={e => setLeadTemperature(e.target.value)}
-            >
-              <option value="cold">Холодный</option>
-              <option value="warm">Тёплый</option>
-              <option value="hot">Горячий</option>
-            </select>
-          </div>
-          <div className="transcript-form-row">
-            <label className="transcript-label">Причина классификации</label>
-            <textarea
-              className="transcript-input transcript-textarea"
-              placeholder="Причина классификации..."
-              value={classificationReason}
-              onChange={e => setClassificationReason(e.target.value)}
-              rows={2}
-            />
-          </div>
-          <div className="transcript-form-btns">
-            <button
-              type="button"
-              className="btn-primary"
-              disabled={saving}
-              onClick={async () => {
-                setSaving(true);
-                try {
-                  const res = await fetch(`${API_BASE}/calls/${encodeURIComponent(call.callId)}`, {
-                    method: 'PATCH',
-                    headers: {
-                      Authorization: `Bearer ${token}`,
-                      'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ leadTemperature, classificationReason })
-                  });
-                  const data = await res.json();
-                  if (res.ok) onUpdate(data);
-                } finally {
-                  setSaving(false);
-                }
-              }}
-            >
-              {saving ? 'Сохранение...' : 'Сохранить классификацию'}
-            </button>
-          </div>
-          <div className="transcript-form-row">
-            <label className="transcript-label">Заметки к звонку</label>
-            <textarea
-              className="transcript-input transcript-textarea"
-              placeholder="Добавить заметку..."
-              value={notes}
-              onChange={e => setNotes(e.target.value)}
-              rows={3}
-            />
-          </div>
-          <div className="transcript-form-btns">
-            <button
-              type="button"
-              className="btn-secondary"
-              disabled={savingNotes}
-              onClick={async () => {
-                setSavingNotes(true);
-                try {
-                  const res = await fetch(`${API_BASE}/calls/${encodeURIComponent(call.callId)}`, {
-                    method: 'PATCH',
-                    headers: {
-                      Authorization: `Bearer ${token}`,
-                      'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ notes })
-                  });
-                  const data = await res.json();
-                  if (res.ok) onUpdate(data);
-                } finally {
-                  setSavingNotes(false);
-                }
-              }}
-            >
-              {savingNotes ? 'Сохранение...' : 'Сохранить заметки'}
-            </button>
-          </div>
-          <div className="transcript-form-btns">
-            <button
-              type="button"
-              className="btn-secondary"
-              disabled={syncingCrm}
-              onClick={async () => {
-              setSyncingCrm(true);
-              try {
-                const res = await fetch(`${API_BASE}/calls/${encodeURIComponent(call.callId)}/sync-crm`, {
-                  method: 'POST',
-                  headers: { Authorization: `Bearer ${token}` }
-                });
-                const data = await res.json();
-                if (res.ok) {
-                  onUpdate(data);
-                  showToast?.('Отправлено в CRM');
-                } else if (res.status === 400) (showToast || (m => alert(m)))(data.error || 'CRM не настроен', true);
-                else (showToast || (m => alert(m)))(data.error || 'Ошибка синхронизации с CRM', true);
-              } finally {
-                setSyncingCrm(false);
-              }
-            }}
-            >
-              {syncingCrm ? 'Отправка...' : 'Отправить в CRM'}
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
     </div>
   );
 }
@@ -877,324 +898,234 @@ function SettingsPage({ token, showToast }) {
   );
 }
 
-// ─── Scripts Page ──────────────────────────────────────────────────────────────
+// ─── Business Profile Page (Анкета) ────────────────────────────────────────────
 
-function ScriptsPage({ token, showToast }) {
-  const [scripts, setScripts] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [showModal, setShowModal] = useState(false);
-  const [newScript, setNewScript] = useState({ name: '', description: '', firstMessage: '', systemPrompt: '' });
-  const [editScript, setEditScript] = useState(null);
-  const [applyingId, setApplyingId] = useState(null);
+const PROFILE_QUESTIONS = [
+  { key: 'companyName', label: 'Название вашей компании' },
+  { key: 'industry', label: 'Сфера деятельности / ниша' },
+  { key: 'product', label: 'Какой товар / услугу вы продаёте?' },
+  { key: 'targetAudience', label: 'Кто ваша целевая аудитория?' },
+  { key: 'advantages', label: 'Какие основные преимущества вашего предложения?' },
+  { key: 'competitors', label: 'Есть ли конкуренты? Чем вы отличаетесь?' },
+  { key: 'objections', label: 'Какие возражения чаще всего возникают у клиентов?' },
+  { key: 'successCriteria', label: 'Какой итог звонка считаете успешным? (встреча, заявка, продажа)' },
+  { key: 'restrictions', label: 'Есть ли ограничения: что ассистент НЕ должен говорить?' },
+  { key: 'additionalInfo', label: 'Дополнительная информация' },
+];
 
-  const fetchScripts = async () => {
-    setLoading(true);
+function BusinessProfilePage({ token, showToast }) {
+  const [profile, setProfile] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [answers, setAnswers] = useState({});
+  const [supplementModal, setSupplementModal] = useState(null); // { key, label }
+  const [supplementText, setSupplementText] = useState('');
+  const [savingNote, setSavingNote] = useState(false);
+
+  const fetchProfile = async () => {
     try {
-      const res = await fetch(`${API_BASE}/scripts`, {
+      const res = await fetch(`${API_BASE}/business-profile`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      setScripts(Array.isArray(data) ? data : []);
+      setProfile(data);
+      if (data?.answers) setAnswers(data.answers);
     } catch (err) {
-      console.error('Fetch scripts failed:', err);
+      console.error('Fetch profile failed:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchScripts();
-  }, []);
+  useEffect(() => { fetchProfile(); }, []);
 
-  const handleCreate = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    const filled = Object.entries(answers).filter(([, v]) => v.trim());
+    if (filled.length === 0) {
+      showToast?.('Заполните хотя бы одно поле', true);
+      return;
+    }
+    setSaving(true);
     try {
-      const res = await fetch(`${API_BASE}/scripts`, {
+      const res = await fetch(`${API_BASE}/business-profile`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify(newScript)
+        body: JSON.stringify({ answers })
       });
       if (res.ok) {
-        setShowModal(false);
-        setNewScript({ name: '', description: '', firstMessage: '', systemPrompt: '' });
-        fetchScripts();
-        showToast('Скрипт создан');
+        showToast?.('Анкета сохранена');
+        fetchProfile();
       } else {
         const data = await res.json();
-        showToast(data.error || 'Ошибка создания', true);
+        showToast?.(data.error || 'Ошибка сохранения', true);
       }
     } catch (err) {
-      console.error('Create script failed:', err);
-      showToast('Не удалось создать скрипт', true);
+      showToast?.('Не удалось сохранить анкету', true);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleUpdate = async (e) => {
-    e.preventDefault();
-    if (!editScript || !editScript.id) return;
+  const handleSupplement = async () => {
+    if (!supplementText.trim()) return;
+    setSavingNote(true);
     try {
-      const res = await fetch(`${API_BASE}/scripts/${editScript.id}`, {
+      const res = await fetch(`${API_BASE}/business-profile`, {
         method: 'PATCH',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          name: editScript.name,
-          description: editScript.description,
-          firstMessage: editScript.firstMessage,
-          systemPrompt: editScript.systemPrompt,
-          isActive: editScript.isActive
-        })
+        body: JSON.stringify({ questionKey: supplementModal.key, note: supplementText.trim() })
       });
       if (res.ok) {
-        setEditScript(null);
-        fetchScripts();
-        showToast('Скрипт обновлён');
+        showToast?.('Дополнение добавлено');
+        setSupplementModal(null);
+        setSupplementText('');
+        fetchProfile();
       } else {
         const data = await res.json();
-        showToast(data.error || 'Ошибка обновления', true);
+        showToast?.(data.error || 'Ошибка', true);
       }
     } catch (err) {
-      console.error('Update script failed:', err);
-      showToast('Не удалось обновить скрипт', true);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm('Удалить этот скрипт?')) return;
-    try {
-      await fetch(`${API_BASE}/scripts/${id}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      fetchScripts();
-      showToast('Скрипт удалён');
-    } catch (err) {
-      console.error('Delete script failed:', err);
-      showToast('Не удалось удалить скрипт', true);
-    }
-  };
-
-  const handleApply = async (id) => {
-    setApplyingId(id);
-    try {
-      const res = await fetch(`${API_BASE}/scripts/${id}/apply`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (res.ok) {
-        showToast(data.vapiError ? 'Настройки сохранены; VAPI: ' + data.vapiError : (data.message || 'Скрипт применён'));
-        if (data.vapiError) showToast(data.vapiError, true);
-      } else {
-        showToast(data.error || 'Ошибка применения скрипта', true);
-      }
-    } catch (err) {
-      console.error('Apply script failed:', err);
-      showToast('Не удалось применить скрипт', true);
+      showToast?.('Не удалось добавить дополнение', true);
     } finally {
-      setApplyingId(null);
+      setSavingNote(false);
     }
   };
+
+  if (loading) {
+    return (
+      <div className="page">
+        <div className="page-header"><h1 className="page-title">О вашем бизнесе</h1></div>
+        <div className="empty-state"><RefreshCw size={24} className="spin" /><span>Загрузка...</span></div>
+      </div>
+    );
+  }
+
+  const isSubmitted = profile?.isSubmitted;
 
   return (
     <div className="page">
       <div className="page-header">
-        <h1 className="page-title">Сценарии звонков</h1>
-        <button className="btn-primary" onClick={() => setShowModal(true)}>+ Новый скрипт</button>
+        <h1 className="page-title">О вашем бизнесе</h1>
+        <p className="profile-subtitle">
+          {isSubmitted
+            ? 'Ваши ответы используются для формирования скрипта. Вы можете дополнить информацию.'
+            : 'Заполните анкету, чтобы мы могли создать идеальный скрипт для ваших звонков.'
+          }
+        </p>
       </div>
 
-      <div className="section">
-        {loading ? (
-          <div className="empty-state">
-            <RefreshCw size={24} className="spin" />
-            <span>Загрузка...</span>
-          </div>
-        ) : scripts.length === 0 ? (
-          <div className="empty-state">
-            <FileText size={24} />
-            <span>Скриптов пока нет. Создайте первый!</span>
-          </div>
-        ) : (
-          <div className="table-wrap">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Название</th>
-                  <th>Описание</th>
-                  <th>Первое сообщение</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {scripts.map(s => (
-                  <tr key={s.id} className="table-row">
-                    <td>
-                      <div className="lead-name">{s.name}</div>
-                    </td>
-                    <td className="td-muted">{s.description || '—'}</td>
-                    <td className="td-muted">{s.firstMessage || '—'}</td>
-                    <td>
-                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                        <button
-                          className="row-action btn-primary"
-                          disabled={applyingId === s.id}
-                          onClick={() => handleApply(s.id)}
-                        >
-                          {applyingId === s.id ? '...' : 'Применить'}
-                        </button>
-                        <button className="row-action" onClick={() => setEditScript({ id: s.id, name: s.name, description: s.description || '', firstMessage: s.firstMessage || '', systemPrompt: s.systemPrompt || '', isActive: s.isActive !== false })}>
-                          Редактировать
-                        </button>
-                        <button className="row-action" style={{ background: 'none', color: '#ef4444' }} onClick={() => handleDelete(s.id)}>
-                          Удалить
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {editScript && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setEditScript(null)}>
-          <div className="modal script-form-modal" style={{ maxWidth: '560px' }}>
-            <div className="modal-header">
-              <h2>Редактировать сценарий</h2>
-              <button type="button" className="modal-close" onClick={() => setEditScript(null)} aria-label="Закрыть"><X size={20} /></button>
-            </div>
-            <form onSubmit={handleUpdate} className="script-form">
-              <div className="modal-body">
-                <div className="form-section">
-                  <div className="form-section-title">Основное</div>
-                  <div className="form-group">
-                    <label htmlFor="edit-script-name">Название сценария</label>
-                    <input
-                      id="edit-script-name"
-                      type="text"
-                      required
-                      placeholder="Например: Холодный обзвон — турбазы"
-                      value={editScript.name}
-                      onChange={e => setEditScript({ ...editScript, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="edit-script-desc">Описание</label>
-                    <input
-                      id="edit-script-desc"
-                      type="text"
-                      placeholder="Кратко, о чём этот сценарий"
-                      value={editScript.description}
-                      onChange={e => setEditScript({ ...editScript, description: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="form-section">
-                  <div className="form-section-title">Поведение ассистента</div>
-                  <div className="form-group">
-                    <label htmlFor="edit-script-first">Первое сообщение</label>
-                    <textarea
-                      id="edit-script-first"
-                      placeholder="Фраза, с которой ассистент начинает разговор"
-                      value={editScript.firstMessage}
-                      onChange={e => setEditScript({ ...editScript, firstMessage: e.target.value })}
-                      rows={3}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="edit-script-prompt">Системный промпт</label>
-                    <textarea
-                      id="edit-script-prompt"
-                      required
-                      placeholder="Инструкция для AI: тон, цели, ограничения"
-                      value={editScript.systemPrompt}
-                      onChange={e => setEditScript({ ...editScript, systemPrompt: e.target.value })}
-                      rows={6}
-                    />
-                  </div>
+      {!isSubmitted ? (
+        /* ── Editable questionnaire form ── */
+        <form onSubmit={handleSubmit} className="profile-form section">
+          <div className="profile-questions">
+            {PROFILE_QUESTIONS.map((q, i) => (
+              <div key={q.key} className="profile-question-card">
+                <div className="profile-question-number">{i + 1}</div>
+                <div className="profile-question-body">
+                  <label htmlFor={`pq-${q.key}`} className="profile-question-label">{q.label}</label>
+                  <textarea
+                    id={`pq-${q.key}`}
+                    className="profile-question-input"
+                    placeholder="Ваш ответ..."
+                    value={answers[q.key] || ''}
+                    onChange={e => setAnswers(prev => ({ ...prev, [q.key]: e.target.value }))}
+                    rows={3}
+                  />
                 </div>
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setEditScript(null)}>Отмена</button>
-                <button type="submit" className="btn-primary">Сохранить</button>
-              </div>
-            </form>
+            ))}
           </div>
+          <div className="profile-submit-row">
+            <button type="submit" className="btn-primary" disabled={saving}>
+              {saving ? 'Сохранение...' : 'Отправить анкету'}
+            </button>
+          </div>
+        </form>
+      ) : (
+        /* ── Read-only answers with supplement buttons ── */
+        <div className="profile-answers section">
+          {PROFILE_QUESTIONS.map((q, i) => {
+            const answer = profile?.answers?.[q.key];
+            const supplements = profile?.supplements?.[q.key] || [];
+            if (!answer && supplements.length === 0) return null;
+            return (
+              <div key={q.key} className="profile-answer-card">
+                <div className="profile-answer-header">
+                  <div className="profile-question-number">{i + 1}</div>
+                  <span className="profile-answer-label">{q.label}</span>
+                  <button
+                    className="profile-supplement-btn"
+                    onClick={() => { setSupplementModal(q); setSupplementText(''); }}
+                    title="Дополнить"
+                  >
+                    <MessageSquarePlus size={14} />
+                    <span>Дополнить</span>
+                  </button>
+                </div>
+                <div className="profile-answer-body">
+                  <div className="profile-answer-text">
+                    <Lock size={12} className="profile-lock-icon" />
+                    <span>{answer || '—'}</span>
+                  </div>
+                  {supplements.length > 0 && (
+                    <div className="profile-supplements">
+                      {supplements.map((s, si) => (
+                        <div key={si} className="profile-supplement-item">
+                          <Plus size={10} />
+                          <span>{s.text}</span>
+                          <span className="profile-supplement-date">
+                            {new Date(s.addedAt).toLocaleDateString('ru-RU')}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
-      {showModal && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setShowModal(false)}>
-          <div className="modal script-form-modal" style={{ maxWidth: '560px' }}>
+
+      {/* Supplement Modal */}
+      {supplementModal && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setSupplementModal(null)}>
+          <div className="modal" style={{ maxWidth: '480px' }}>
             <div className="modal-header">
-              <h2>Новый сценарий</h2>
-              <button type="button" className="modal-close" onClick={() => setShowModal(false)} aria-label="Закрыть"><X size={20} /></button>
+              <h2>Дополнить ответ</h2>
+              <button type="button" className="modal-close" onClick={() => setSupplementModal(null)} aria-label="Закрыть"><X size={20} /></button>
             </div>
-            <form onSubmit={handleCreate} className="script-form">
-              <div className="modal-body">
-                <p className="form-intro">Заполните параметры сценария. Название и системный промпт обязательны — они задают поведение ассистента в звонках.</p>
-                <div className="form-section">
-                  <div className="form-section-title">Основное</div>
-                  <div className="form-group">
-                    <label htmlFor="new-script-name">Название сценария</label>
-                    <input
-                      id="new-script-name"
-                      type="text"
-                      required
-                      placeholder="Например: Холодный обзвон — турбазы"
-                      value={newScript.name}
-                      onChange={e => setNewScript({ ...newScript, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="new-script-desc">Описание</label>
-                    <input
-                      id="new-script-desc"
-                      type="text"
-                      placeholder="Кратко, о чём этот сценарий (для себя)"
-                      value={newScript.description}
-                      onChange={e => setNewScript({ ...newScript, description: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="form-section">
-                  <div className="form-section-title">Поведение ассистента</div>
-                  <div className="form-group">
-                    <label htmlFor="new-script-first">Первое сообщение</label>
-                    <textarea
-                      id="new-script-first"
-                      placeholder="Фраза, с которой ассистент начинает разговор. Например: Добрый день! Меня зовут Алекс, я звоню вам из компании..."
-                      value={newScript.firstMessage}
-                      onChange={e => setNewScript({ ...newScript, firstMessage: e.target.value })}
-                      rows={3}
-                    />
-                    <p className="form-hint">Озвучивается в начале звонка.</p>
-                  </div>
-                  <div className="form-group">
-                    <label htmlFor="new-script-prompt">Системный промпт</label>
-                    <textarea
-                      id="new-script-prompt"
-                      required
-                      placeholder="Ты — опытный менеджер по продажам. Твоя цель — вежливо представиться, уточнить потребность клиента и при возможности назначить встречу или перезвон."
-                      value={newScript.systemPrompt}
-                      onChange={e => setNewScript({ ...newScript, systemPrompt: e.target.value })}
-                      rows={6}
-                    />
-                    <p className="form-hint">Инструкция для AI: тон, цели, что можно и нельзя говорить.</p>
-                  </div>
-                </div>
+            <div className="modal-body">
+              <p className="form-intro">{supplementModal.label}</p>
+              <div className="form-group">
+                <label htmlFor="supplement-note">Дополнительная информация</label>
+                <textarea
+                  id="supplement-note"
+                  placeholder="Добавьте новые детали..."
+                  value={supplementText}
+                  onChange={e => setSupplementText(e.target.value)}
+                  rows={4}
+                />
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Отмена</button>
-                <button type="submit" className="btn-primary">Создать сценарий</button>
-              </div>
-            </form>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn-secondary" onClick={() => setSupplementModal(null)}>Отмена</button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={savingNote || !supplementText.trim()}
+                onClick={handleSupplement}
+              >
+                {savingNote ? 'Сохранение...' : 'Добавить'}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -1332,58 +1263,58 @@ function OutboundCallModal({ token, onClose, onSuccess }) {
           </button>
         </div>
         <div className="outbound-modal-body">
-        <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>Запустите исходящий звонок. Требуется VAPI_PHONE_NUMBER_ID в .env для реального вызова.</p>
+          <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 20 }}>Запустите исходящий звонок. Требуется VAPI_PHONE_NUMBER_ID в .env для реального вызова.</p>
 
-        <div className="login-form">
-          <label className="login-label">Номер телефона</label>
-          <input
-            className="login-input"
-            placeholder="+7..."
-            value={phone}
-            onChange={e => setPhone(e.target.value)}
-          />
-          <label className="login-label">Имя клиента (опц.)</label>
-          <input
-            className="login-input"
-            placeholder="Иван Иванович"
-            value={name}
-            onChange={e => setName(e.target.value)}
-          />
+          <div className="login-form">
+            <label className="login-label">Номер телефона</label>
+            <input
+              className="login-input"
+              placeholder="+7..."
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+            />
+            <label className="login-label">Имя клиента (опц.)</label>
+            <input
+              className="login-input"
+              placeholder="Иван Иванович"
+              value={name}
+              onChange={e => setName(e.target.value)}
+            />
 
-          <label className="login-label">Сценарий (опц.)</label>
-          <select
-            className="login-input"
-            value={scriptId}
-            onChange={e => setScriptId(e.target.value)}
-            style={{ appearance: 'auto', paddingRight: '10px' }}
-          >
-            <option value="">Текущие настройки</option>
-            {scripts.map(s => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
-
-          {error && <div style={{ color: 'var(--rose)', fontSize: 12, marginBottom: 12 }}>{error}</div>}
-
-          <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
-            <button className="login-btn" style={{ flex: 2 }} onClick={() => handleCall(false)} disabled={loading}>
-              {loading ? <RefreshCw size={14} className="spin" /> : <PhoneOutgoing size={14} />}
-              <span>Позвонить</span>
-            </button>
-            <button
-              className="login-btn"
-              style={{ flex: 1, background: 'var(--bg-4)', color: 'var(--text-1)' }}
-              onClick={() => handleCall(true)}
-              disabled={loading}
-              title="Симуляция без реального звонка"
+            <label className="login-label">Сценарий (опц.)</label>
+            <select
+              className="login-input"
+              value={scriptId}
+              onChange={e => setScriptId(e.target.value)}
+              style={{ appearance: 'auto', paddingRight: '10px' }}
             >
-              Demo
-            </button>
+              <option value="">Текущие настройки</option>
+              {scripts.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+
+            {error && <div style={{ color: 'var(--rose)', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+              <button className="login-btn" style={{ flex: 2 }} onClick={() => handleCall(false)} disabled={loading}>
+                {loading ? <RefreshCw size={14} className="spin" /> : <PhoneOutgoing size={14} />}
+                <span>Позвонить</span>
+              </button>
+              <button
+                className="login-btn"
+                style={{ flex: 1, background: 'var(--bg-4)', color: 'var(--text-1)' }}
+                onClick={() => handleCall(true)}
+                disabled={loading}
+                title="Симуляция без реального звонка"
+              >
+                Demo
+              </button>
+            </div>
+            <div className="outbound-modal-hint">
+              Или используйте пункт «Demo Call» в меню слева для звонка через браузер.
+            </div>
           </div>
-          <div className="outbound-modal-hint">
-            Или используйте пункт «Demo Call» в меню слева для звонка через браузер.
-          </div>
-        </div>
         </div>
       </div>
     </div>
@@ -1404,6 +1335,7 @@ export default function App() {
   const [showCallModal, setShowCallModal] = useState(false);
   const [callFilters, setCallFilters] = useState({ period: 'week', temperature: 'all' });
   const [toast, setToast] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const toastRef = useRef(null);
 
   const showToast = (message, isError = false) => {
@@ -1495,12 +1427,19 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <Sidebar active={page} onNav={setPage} onLogout={logout} />
+      <Sidebar active={page} onNav={setPage} onLogout={logout} isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <main className="main-content">
         {/* Topbar */}
         <div className="topbar">
           <div className="topbar-left">
+            <button
+              className="topbar-hamburger"
+              onClick={() => setSidebarOpen(v => !v)}
+              aria-label="Меню"
+            >
+              <Menu size={20} />
+            </button>
             <button
               className="topbar-refresh"
               onClick={fetchData}
@@ -1550,10 +1489,7 @@ export default function App() {
               fetchData={fetchData}
             />
           )}
-          {page === 'scripts' && <ScriptsPage token={token} showToast={showToast} />}
-          {page === 'settings' && (
-            <SettingsPage token={token} showToast={showToast} />
-          )}
+          {page === 'profile' && <BusinessProfilePage token={token} showToast={showToast} />}
         </div>
       </main>
 

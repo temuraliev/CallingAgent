@@ -114,3 +114,19 @@ export const leadClassificationSchema = z.object({
         wantsCallback: z.boolean().optional()
     })
 });
+
+export const submitProfileSchema = z.object({
+    body: z.object({
+        answers: z.record(z.string(), z.string().max(5000)).refine(
+            data => Object.keys(data).length > 0,
+            { message: 'At least one answer is required' }
+        ),
+    })
+});
+
+export const addProfileNoteSchema = z.object({
+    body: z.object({
+        questionKey: z.string().min(1, 'questionKey is required'),
+        note: z.string().min(1, 'note is required').max(5000),
+    })
+});
