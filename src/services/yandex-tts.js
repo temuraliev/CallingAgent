@@ -1,10 +1,4 @@
-import { serviceClients, Session, cloudApi } from '@yandex-cloud/nodejs-sdk';
-
-const {
-  ai: {
-    tts_service: { UtteranceSynthesisRequest },
-  },
-} = cloudApi;
+import { serviceClients, Session } from '@yandex-cloud/nodejs-sdk';
 
 let cachedClient = null;
 function getClient() {
@@ -20,20 +14,26 @@ function getClient() {
  * Server-streaming synthesis via Yandex SpeechKit v3 (gRPC).
  * Yields raw PCM16 mono chunks at the requested sample rate.
  *
- * Note: only the top-level request uses fromPartial. Nested messages
- * (outputAudioSpec, hints) are passed as plain objects — ts-proto
- * recursively reconstructs them, and this avoids depending on the
- * exact export path of helper types in cloudApi.
+ * We pass a plain JS object to client.utteranceSynthesis instead of
+ * UtteranceSynthesisRequest.fromPartial(...). The destructuring path
+ * for the helper class differs across SDK versions and was undefined
+ * in @yandex-cloud/nodejs-sdk on Railway. The gRPC stub serializes
+ * by reading fields off the request, so a structurally-compatible
+ * plain object works without depending on internal export layout.
+ *
+ * audioEncoding: 1 = LINEAR16_PCM
+ * loudnessNormalizationType: 1 = LUFS
  */
 export async function* synthesizeStream(text, { sampleRate = 16000 } = {}) {
   if (!text || !String(text).trim()) return;
 
   const client = getClient();
-  const request = UtteranceSynthesisRequest.fromPartial({
+
+  const request = {
     text: String(text),
     outputAudioSpec: {
       rawAudio: {
-        audioEncoding: 1, // LINEAR16_PCM
+        audioEncoding: 1,
         sampleRateHertz: sampleRate,
       },
     },
@@ -41,8 +41,8 @@ export async function* synthesizeStream(text, { sampleRate = 16000 } = {}) {
       { voice: process.env.YANDEX_VOICE || 'alena' },
       { role: process.env.YANDEX_ROLE || 'neutral' },
     ],
-    loudnessNormalizationType: 1, // LUFS
-  });
+    loudnessNormalizationType: 1,
+  };
 
   const stream = client.utteranceSynthesis(request);
   for await (const message of stream) {
