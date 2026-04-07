@@ -25,7 +25,19 @@ export async function* synthesizeStream(text, { sampleRate = 16000 } = {}) {
   const apiKey = process.env.YANDEX_API_KEY;
   if (!apiKey) throw new Error('YANDEX_API_KEY is not set');
 
+  const hints = [
+    { voice: process.env.YANDEX_VOICE || 'alena' },
+    { role: process.env.YANDEX_ROLE || 'good' },
+  ];
+  // Optional: speed (0.1..3.0, default 1.0) and pitch shift via env.
+  if (process.env.YANDEX_SPEED) {
+    hints.push({ speed: Number(process.env.YANDEX_SPEED) });
+  }
+
   const body = {
+    // "general" = neural model (much more natural than the default).
+    // Use "general:rc" to get the newest release-candidate voice quality.
+    model: process.env.YANDEX_MODEL || 'general',
     text: String(text),
     outputAudioSpec: {
       rawAudio: {
@@ -33,10 +45,7 @@ export async function* synthesizeStream(text, { sampleRate = 16000 } = {}) {
         sampleRateHertz: String(sampleRate),
       },
     },
-    hints: [
-      { voice: process.env.YANDEX_VOICE || 'alena' },
-      { role: process.env.YANDEX_ROLE || 'neutral' },
-    ],
+    hints,
     loudnessNormalizationType: 'LUFS',
   };
 
