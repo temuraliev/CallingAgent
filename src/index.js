@@ -5,6 +5,7 @@ import apiRoutes from './routes/api.routes.js';
 import webhookRoutes from './routes/webhook.routes.js';
 import { getHealth } from './controllers/api.controller.js';
 import { initQueue } from './services/queue.js';
+import { runMigrations } from './db/migrate.js';
 
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -31,6 +32,7 @@ const PORT = process.env.PORT || 3000;
 
 async function bootstrap() {
   try {
+    await runMigrations();
     await initQueue().catch(err => console.error('Warning: Queue init failed', err.message));
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

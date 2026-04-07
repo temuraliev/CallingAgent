@@ -33,126 +33,146 @@
       Добавьте <code>VAPI_PUBLIC_API_KEY</code> и <code>VAPI_ASSISTANT_ID</code> в .env и переменные Railway.
       Получить их можно в <a href="https://dashboard.vapi.ai" target="_blank" rel="noopener">VAPI Dashboard</a>.
     </div>
-    <p id="readyMsg">Виджет звонка появится ниже. Разрешите доступ к микрофону.</p>
+    <p id="readyMsg">Нажмите кнопку ниже и разрешите доступ к микрофону.</p>
+
+    <div id="controls" style="display:flex;flex-direction:column;gap:12px;margin-top:1.5rem;align-items:center;">
+      <button id="startBtn" class="primary-btn" disabled>Начать звонок</button>
+      <button id="stopBtn" class="primary-btn" style="display:none;background:#dc2626;">Завершить</button>
+      <p id="callStatus" class="sync-status hidden"></p>
+    </div>
     <p id="syncStatus" class="sync-status hidden"></p>
   </div>
 
-  <script>
-    (async function () {
+  <script type="module">
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const isValidUuid = (s) => typeof s === 'string' && UUID_RE.test(s.trim());
+
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const setupMsg = document.getElementById('setupMsg');
+    const readyMsg = document.getElementById('readyMsg');
+    const callStatus = document.getElementById('callStatus');
+    const syncStatus = document.getElementById('syncStatus');
+
+    function setStatus(el, text, kind) {
+      if (!el) return;
+      el.textContent = text;
+      el.className = 'sync-status ' + (kind === 'error' ? 'sync-status--error' : 'sync-status--ok');
+      el.classList.remove('hidden');
+    }
+
+    let vapi = null;
+    let activeCallId = null;
+    let collectedTranscript = [];
+    let callStartedAt = null;
+
+    async function bootstrap() {
       const res = await fetch('/api/config');
       const { vapiPublicKey, vapiAssistantId } = await res.json();
 
       if (!vapiPublicKey || !vapiAssistantId) {
-        document.getElementById('setupMsg').classList.remove('hidden');
-        document.getElementById('readyMsg').classList.add('hidden');
+        setupMsg.classList.remove('hidden');
+        readyMsg.classList.add('hidden');
         return;
       }
 
-      const script = document.createElement('script');
-      script.src = 'https://cdn.jsdelivr.net/gh/VapiAI/html-script-tag@latest/dist/assets/index.js';
-      script.defer = true;
-      script.async = true;
-      let activeCallId = null;
-
-      script.onload = function () {
-        const vapiInstance = window.vapiSDK.run({
-          apiKey: vapiPublicKey,
-          assistant: vapiAssistantId,
-        });
-
-        vapiInstance.on('call-start', (data) => {
-          console.log('--- CALL START ---', data);
-          activeCallId = pickCallId(data);
-          if (activeCallId) console.log('Found Call ID on start:', activeCallId);
-        });
-
-        vapiInstance.on('message', (msg) => {
-          if (!activeCallId) {
-            var id = pickCallId(msg);
-            if (id && isValidUuid(id)) {
-              activeCallId = String(id);
-              console.log('Found Call ID via message:', activeCallId);
-            }
-          }
-        });
-
-        vapiInstance.on('call-end', async (data) => {
-          console.log('--- CALL END ---', data);
-          var currentId = pickCallId(data);
-          var finalId = (currentId && isValidUuid(currentId) ? currentId : null) || (activeCallId && isValidUuid(activeCallId) ? activeCallId : null);
-          if (finalId) await triggerSync(finalId);
-          else showSyncStatus('Не удалось получить ID звонка. Проверьте консоль (F12).', true);
-        });
-      };
-
-      function isValidUuid(str) {
-        if (typeof str !== 'string' || !str) return false;
-        return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str.trim());
+      let Vapi;
+      try {
+        Vapi = (await import('https://esm.sh/@vapi-ai/web@2.3.8')).default;
+      } catch (err) {
+        console.error('Failed to load VAPI SDK:', err);
+        setStatus(callStatus, 'Не удалось загрузить VAPI SDK. Проверьте соединение.', 'error');
+        return;
       }
 
-      function pickCallId(data) {
-        if (!data) return null;
-        var uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-        function from(obj) {
-          if (!obj || typeof obj !== 'object') return null;
-          var id = obj.id || obj.callId || obj.call_id;
-          if (id && uuidRe.test(String(id))) return String(id);
-          if (obj.call) return from(obj.call);
-          if (obj.message && obj.message.call) return from(obj.message.call);
-          return null;
+      vapi = new Vapi(vapiPublicKey);
+
+      vapi.on('call-start', () => {
+        console.log('--- CALL START ---');
+        callStartedAt = Date.now();
+        collectedTranscript = [];
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'inline-block';
+        setStatus(callStatus, '🎙 Звонок идёт...', 'ok');
+      });
+
+      vapi.on('message', (msg) => {
+        if (msg?.type === 'transcript' && msg.transcriptType === 'final') {
+          const role = msg.role || 'user';
+          const text = msg.transcript || msg.text || '';
+          if (text.trim()) collectedTranscript.push({ role, message: text });
         }
-        var id = from(data) || data.id || data.callId || data.call?.id || data.call?.callId;
-        if (id && isValidUuid(String(id))) return String(id);
-        function findUuid(obj, depth) {
-          if (depth > 5) return null;
-          if (!obj || typeof obj !== 'object') return null;
-          if (typeof obj === 'string' && uuidRe.test(obj)) return obj;
-          for (var key in obj) {
-            var v = obj[key];
-            if (typeof v === 'string' && uuidRe.test(v)) return v;
-            var found = findUuid(v, depth + 1);
-            if (found) return found;
-          }
-          return null;
-        }
-        return findUuid(data, 0);
-      }
+      });
 
-      function showSyncStatus(text, isError) {
-        const el = document.getElementById('syncStatus');
-        if (!el) return;
-        el.textContent = text;
-        el.className = 'sync-status ' + (isError ? 'sync-status--error' : 'sync-status--ok');
-        el.classList.remove('hidden');
-      }
+      vapi.on('error', (err) => {
+        console.error('VAPI error:', err);
+        setStatus(callStatus, 'Ошибка VAPI: ' + (err?.message || err), 'error');
+      });
 
-      async function triggerSync(callId) {
-        var statusEl = document.getElementById('syncStatus');
+      vapi.on('call-end', async () => {
+        console.log('--- CALL END --- id=', activeCallId);
+        startBtn.style.display = 'inline-block';
+        stopBtn.style.display = 'none';
+        setStatus(callStatus, 'Звонок завершён, синхронизирую...', 'ok');
+        const duration = callStartedAt ? Math.round((Date.now() - callStartedAt) / 1000) : 0;
+        await triggerSync(activeCallId, duration);
+        activeCallId = null;
+        callStartedAt = null;
+      });
+
+      startBtn.disabled = false;
+
+      startBtn.addEventListener('click', async () => {
         try {
-          statusEl && statusEl.classList.add('hidden');
-          var id = (callId && String(callId).trim()) || '';
-          if (!isValidUuid(id)) {
-            showSyncStatus('ID звонка не в формате UUID. Не удалось синхронизировать.', true);
-            return;
-          }
-          var sRes = await fetch('/api/sync-call', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ callId: id })
-          });
-          var result = await sRes.json();
-          if (sRes.ok && result.success) {
-            showSyncStatus('Звонок сохранён. Откройте Dashboard и нажмите «Обновить» (или F5), чтобы увидеть звонок.');
-          } else {
-            showSyncStatus(result.error || 'Ошибка синхронизации', true);
-          }
+          syncStatus.classList.add('hidden');
+          setStatus(callStatus, 'Запускаю звонок...', 'ok');
+          const call = await vapi.start(vapiAssistantId);
+          // Modern @vapi-ai/web returns the Call object with .id (UUID)
+          activeCallId = call?.id || null;
+          if (activeCallId) console.log('Call ID:', activeCallId);
         } catch (err) {
-          console.error('Failed to trigger sync:', err);
-          showSyncStatus('Ошибка сети или сервера: ' + (err.message || 'проверьте консоль'), true);
+          console.error('start() failed:', err);
+          setStatus(callStatus, 'Не удалось начать звонок: ' + (err?.message || err), 'error');
+          startBtn.style.display = 'inline-block';
+          stopBtn.style.display = 'none';
         }
+      });
+
+      stopBtn.addEventListener('click', () => {
+        try { vapi.stop(); } catch (e) { console.error(e); }
+      });
+    }
+
+    async function triggerSync(callId, duration) {
+      try {
+        if (!isValidUuid(callId)) {
+          // Server has a fallback path: it will create a stub from client-side data
+          console.warn('No UUID — sending client-only data for stub save');
+        }
+        const body = {
+          callId: isValidUuid(callId) ? callId : crypto.randomUUID(),
+          duration,
+          transcript: collectedTranscript,
+          summary: '',
+        };
+        const res = await fetch('/api/sync-call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        const result = await res.json();
+        if (res.ok && result.success) {
+          setStatus(syncStatus, '✅ ' + (result.message || 'Звонок сохранён') + '. Откройте Dashboard, чтобы увидеть запись.', 'ok');
+        } else {
+          setStatus(syncStatus, result.error || 'Ошибка синхронизации', 'error');
+        }
+      } catch (err) {
+        console.error('Failed to trigger sync:', err);
+        setStatus(syncStatus, 'Ошибка сети: ' + (err.message || 'проверьте консоль'), 'error');
       }
-      document.body.appendChild(script);
-    })();
+    }
+
+    bootstrap();
   </script>
 </body>
 
